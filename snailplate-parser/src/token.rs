@@ -21,22 +21,22 @@ use std::fmt;
 // token, conversion is easy.
 #[derive(Debug, Clone, Copy)]
 pub enum Token {
-    /// These tokens are content related.
-    Real(TokenBody),
+   /// These tokens are content related.
+   Real(TokenBody),
 
-    /// Phantom tokens should not be used to generate content. These tokens are
-    /// used to return warnings, errors, consumed/expanded tokens. For example
-    /// Resolver expands @include, but path has some errors, so Resolver returns
-    /// Phantom(Include(..)) and then warning/error tokens to inform user about
-    /// the situation. Token stream receiver can then do analysis on warning
-    /// or error tokens and build useful message for user.
-    Phantom(TokenBody),
+   /// Phantom tokens should not be used to generate content. These tokens are
+   /// used to return warnings, errors, consumed/expanded tokens. For example
+   /// Resolver expands @include, but path has some errors, so Resolver returns
+   /// Phantom(Include(..)) and then warning/error tokens to inform user about
+   /// the situation. Token stream receiver can then do analysis on warning
+   /// or error tokens and build useful message for user.
+   Phantom(TokenBody),
 
-    /// This token should be ignored by the outside code. This is necessary so that
-    /// when some component changes state fro Tokenizer, Resolver, etc. the state
-    /// is changed. This makes while loops/state changes easier to write. This
-    /// is returned when sub-state changes as well.
-    StateChange,    
+   /// This token should be ignored by the outside code. This is necessary so that
+   /// when some component changes state fro Tokenizer, Resolver, etc. the state
+   /// is changed. This makes while loops/state changes easier to write. This
+   /// is returned when sub-state changes as well.
+   StateChange,    
 }
 
 
