@@ -41,6 +41,7 @@ impl SpanFormatter for FormatTester {
       r.field("pos_line", &span.pos_line);
       r.field("pos_region", &span.pos_region);
       r.field("pos_zero", &span.pos_zero);
+      r.field("line", &span.line);
 
       if let Some(text) = text {
          r.field("text", &text);
@@ -69,10 +70,11 @@ fn test_formatter(){
       pos_line: 2,
       pos_region: 2,
       pos_zero: 2,
+      line: 0,
    });
 
    let out = format!("{:?}", tb.fmt(&t));
-   let pass = "Defered(Span { index: 0, length: 4, pos_line: 2, pos_region: 2, pos_zero: 2, text: \"PASS\" })";
+   let pass = "Defered(Span { index: 0, length: 4, pos_line: 2, pos_region: 2, pos_zero: 2, line: 0, text: \"PASS\" })";
 
    assert_eq!(out.as_str(), pass);
 }

@@ -24,6 +24,9 @@ pub struct Span {
    /// This is a Span position relative to the first region.
    pub pos_zero: usize,
 
+   /// Line number into given file where the span starts.
+   pub line: usize,
+
    /// Bytes used for Span. This is not a count of characters based on input
    /// encoding. This is a count of raw bytes.
    pub length: usize,
