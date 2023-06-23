@@ -112,3 +112,22 @@ My goal is to write clean and well documented code. Never to commit a functions
 in main branch that has not handled all possible expected error cases.
 
 Useful commit messages and clean change log file.
+
+
+
+## Development notes
+For testing use a tool that allows to test diferent features:
+cargo install cargo-all-features
+
+This is useful, because while developing i want certain features enabled, that
+are extra bug detection expressions that should not be used in production code
+for better speed.
+
+To test use command:
+cargo test-all-features
+
+Example page at: https://crates.io/crates/cargo-all-features
+warning: be sure to add `/root/.cargo/bin` to your PATH to be able to run the installed binaries
+
+export PATH=/root/.cargo/bin:$PATH
+

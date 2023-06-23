@@ -1,8 +1,9 @@
-use crate::tokenbody::TokenBody;
-use crate::span::{Span, SpanFormatter};
+use crate::{
+   tokenbody::TokenBody,
+   span::{Span, SpanFormatter},
+   ParseError
+};
 use std::fmt;
-
-
 
 /// This structure describes tokenized token. If content is corectly parsed 
 /// only Real tokens are returned, but if there are errors or some tokens are
@@ -19,7 +20,7 @@ use std::fmt;
 // code can be reused more, especially for debugging purposes; another advantage
 // that this gives is that any time in future any token can become a Phantom 
 // token, conversion is easy.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum Token {
    /// These tokens are content related.
    Real(TokenBody),
@@ -32,6 +33,15 @@ pub enum Token {
    /// or error tokens and build useful message for user.
    Phantom(TokenBody),
 
+   // fatal errors are those that do not allow to continue parsing,
+   Fatal(ParseError),
+
+   // TODO: implement casual ParseErrors, ones that allow to continue parsing
+   // template, but compilation should fail.
+
+   // TODO: implement warnings; tokens that allow parsing to continue, but emit
+   // warnings when template is compiled.
+
    /// This token should be ignored by the outside code. This is necessary so that
    /// when some component changes state fro Tokenizer, Resolver, etc. the state
    /// is changed. This makes while loops/state changes easier to write. This
@@ -42,20 +52,28 @@ pub enum Token {
 
 
 impl Token {
-    pub fn fmt<'a, F: SpanFormatter>(&'a self, bufowner: &'a F) -> TokenFormatWrapper<F> {
-        TokenFormatWrapper(self, bufowner)
-    }
+   pub fn fmt<'a, F: SpanFormatter>(&'a self, bufowner: &'a F) -> TokenFormatWrapper<F> {
+      TokenFormatWrapper(self, bufowner)
+   }
 
 
 
-    pub fn span_clone(&self) -> Option<Span> {
-        use Token as T;
+   pub fn span_clone(&self) -> Option<Span> {
+      use Token as T;
+      use ParseError as Pe;
 
-        match &self {
-            T::Real(body) | T::Phantom(body) => Some(body.span_clone()),
-            T::StateChange => None
-        }
-    }    
+      match &self {
+         T::Real(body) | T::Phantom(body) => Some(body.span_clone()),
+         T::Fatal(parse_error) => match parse_error{
+            Pe::TokenbufBroken(span, ..) => {
+               Some(span.clone())
+            },
+            Pe::NoMemory => None,
+            Pe::InternalError => None,
+         }
+         T::StateChange => None
+      }
+   }
 }
 
 
@@ -68,10 +86,22 @@ pub struct TokenFormatWrapper<'a, F: SpanFormatter> (&'a Token, &'a F);
 impl<'a, F: SpanFormatter> std::fmt::Debug for TokenFormatWrapper<'a, F> {
    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
       use Token as T;
+      use ParseError as Pe;
 
       let (start, end, body) = match self.0 {
          T::Real(body) => (Some("Real("), Some(")"), Some(body)),
          T::Phantom(body) => (Some("Phantom("), Some(")"), Some(body)),
+         T::Fatal(parse_error) => match parse_error {
+            Pe::TokenbufBroken(..) => {
+               (Some("Fatal(TokenbufBroken("), Some("))"), None)
+            }
+            Pe::NoMemory => {
+               (Some("Fatal(NoMemory("), Some("))"), None)
+            }
+            Pe::InternalError => {
+               (Some("Fatal(InternalError("), Some("))"), None)
+            }
+         }
          T::StateChange => (Some("StateChange"), None, None),
       };
 
@@ -107,13 +137,13 @@ impl<'a, F: SpanFormatter> std::fmt::Debug for TokenFormatWrapper<'a, F> {
       // Debug trait for that, not the derived one.
       if let Err(e) = fmt::Debug::fmt(&body.fmt(self.1), f){
          return Err(e);
-      }    
+      }
 
       if let Some(end) = end {
          if let Err(e) = f.write_str(end) {
             return Err(e);
          }
-      }        
+      }
 
       Ok(())
    }

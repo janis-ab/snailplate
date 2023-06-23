@@ -2,3 +2,24 @@
 name = "snailplate-parser"
 version = "0.1.0"
 edition = "2021"
+
+
+
+[features]
+# This feature flag enforces that tokenbuf is used in all-in/all-out manner not
+# like dequeue. This is intended for testing in development phase.
+tokenbuf_push_guard = []
+
+# When enabled, all tokenbuf actions will print useful output.
+dbg_tokenbuf_verbose = []
+
+
+
+# To test all features, run:
+# cargo test-all-features
+[package.metadata.cargo-all-features]
+
+# Exclude these features from build matrix. In general features that are related
+# to output verbosity while developing are not interesting for automated feature
+# variation testing.
+denylist = ["dbg_tokenbuf_verbose"]
