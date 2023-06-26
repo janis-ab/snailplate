@@ -11,12 +11,72 @@ pub enum TokenizerState {
    /// allowed to invoke iterator::next, since there is no source to tokenize.
    ExpectInput,
 
+   /// All unrecognized text by Tokenizer is left for later parsing. Thus we
+   /// call those tokens Defered. Tokenizer calling code can split/transform
+   /// Defered tokens into any other tokens if necessary.
+   ExpectDefered,
+
    /// This state is active when Tokenizer has got into unrecoverable
    /// tokenization error. This can happen due to various reasons, like, bug in
    /// code, bad input, etc. Once Tokenizer is in this sate it will not recover
    /// from encountered error. It still allows to consume buffered tokens, but
    /// nothing more.
    Failed,
+}
+
+
+
+// On each @include instruction Tokenizer calling code is expected to push
+// new template sources into region stack, Tokenizer must remember significant
+// position values, so that when current region (stack item) is tokenized and
+// Tokenizer pops back to region which had @include instruction, position values
+// can be restored back so that Tokenizer can continue from the location where
+// it was when @include instruction was tokenized.
+//
+// For example: pos_region stores position in region that was active before
+// new source was pushed and had @include instruciton in the middle of string,
+// tokenized string. Value of pos_region stores the position for last tokenized
+// instruction and it's last tokenized char. After when include contents are
+// tokenized and Tokenizer pops back, this is where Tokenizer can continue to
+// scan previous file from stored location.
+//
+// We call this - a state snapshot, that is restored when included source region
+// was parsed.
+//
+// Fields in general have the same meaning as for Tokenizer struct.
+struct StateSnap {
+   pos_region: usize,
+   pos_zero: usize,
+   pos_line: usize,
+   line: usize,
+
+   // this stores the index from where given origin was pushed from
+   // (@include/@require). It is necessary when deeper origin has been
+   // tokenized and Tokenizer must pop virtual stack.
+   index: usize,
+}
+
+
+
+// Each time when some source is pushed in region Vec, we store some information
+// that is useful to make errors/warnings more verbose.
+struct SrcRegionMeta {
+   // index for region from which this region was included from
+   index: usize,
+
+   pos_zero: usize,
+
+   // Position to @include statement in file from which this item was included
+   // It is current file relative not global offset relative.
+   pos_region: usize,
+
+   pos_line: usize,
+   line: usize,
+
+   // filename that describes this region, relative to template directory root
+   // It can be None, when contents are not read from file, for example when
+   // testing or generating template string for parsing.
+   filename: Option<String>,
 }
 
 
@@ -46,6 +106,15 @@ pub struct Tokenizer {
    /// Tokenization state
    state: TokenizerState,
 
+   // Each item in this Vec is a bytes from template file, if there is an
+   // @include or similar directive, it pushes file contents as bytes in next
+   // index.
+   //
+   // region does not work exactly as a stack; it is append only array, where
+   // new item is pushed on each @include or similar directive, but pop actually
+   // restores current state to region from which @include was called.
+   region: Vec<Vec<u8>>,
+
    /// Number of tokens that are available inside tokenbuf. At the same time this
    /// is how many items from the tokenbuf end has to be consumed before clearing
    /// array empty.
@@ -57,6 +126,13 @@ pub struct Tokenizer {
    /// non returned items can be stored in buffer. This should make it easier to
    /// write a tokenizer.
    tokenbuf: Vec<Token>,
+
+   state_snap: Vec<StateSnap>,
+
+   // Region meta is intended to be used when resolving errors, thus we can
+   // leave it at the end of the struct so if struct is too big to fit in single
+   // CPU cache line, it is in next line.
+   region_meta: Vec<SrcRegionMeta>,
 }
 
 
@@ -72,6 +148,9 @@ impl Tokenizer {
          line: 0,
          num_tokens: 0,
          tokenbuf: Vec::with_capacity(16),
+         region: Vec::with_capacity(8),
+         region_meta: Vec::with_capacity(8),
+         state_snap: Vec::with_capacity(8),
       }
    }
 
@@ -267,6 +346,95 @@ impl Tokenizer {
       }
 
       Ok(Some(token))
+   }
+
+
+
+   /// Function that pushes template source into Tokenizers input vector. This
+   /// should be called each time @include, @require or similar directive is
+   /// handled by outer code.
+   ///
+   /// This function does not return any meaningful successful result token, just
+   /// None, but we define this signature for easier code reuse.
+   pub fn src_push(&mut self, filename: Option<&str>, buf: Vec<u8>)
+      -> Result<Option<Token>, Token>
+   {
+      let ss = &mut self.state_snap;
+
+      // We do not want to panic if there is not enough memory.
+      let cap = ss.capacity();
+      let len = ss.len();
+      if cap < len + 1 {
+         if let Err(..) = ss.try_reserve(8){
+            return self.fail(Token::Fatal(ParseError::NoMemory));
+         }
+      }
+
+      ss.push(StateSnap {
+         pos_region: self.pos_region,
+         pos_zero: self.pos_zero,
+         pos_line: self.pos_line,
+         line: self.line,
+         index: self.index,
+      });
+
+      let fname = if let Some(filename) = filename {
+         Some(filename.to_owned())
+      }
+      else {
+         None
+      };
+
+      let rm = &mut self.region_meta;
+      let cap = rm.capacity();
+      let len = rm.len();
+      if cap < len + 1 {
+         if let Err(..) = rm.try_reserve(16) {
+            return self.fail(Token::Fatal(ParseError::NoMemory));
+         }
+      }
+
+      rm.push(SrcRegionMeta {
+         // We always assume that the reason for src_push is current region
+         // soruce/contents. Thus we can use index and other fields.
+         // Technically this should be correct in most of cases. Where this
+         // can go wrong is when src_push is done manually from tests or so.
+         // At the moment i do not think, that it's worth to implement a 
+         // special infinity/null value for those cases; but the time will
+         // show.
+         pos_region: self.pos_region,
+         index: self.index,
+         pos_zero: self.pos_zero,
+         pos_line: self.pos_line,
+         line: self.line,
+
+         filename: fname,
+      });
+
+      let r = &mut self.region;
+      let cap = r.capacity();
+      let len = r.len();
+      if cap < len + 1 {
+         if let Err(..) = r.try_reserve(16) {
+            return self.fail(Token::Fatal(ParseError::NoMemory));
+         }
+      }
+
+      r.push(buf);
+
+      self.index = self.region.len() - 1;
+      self.pos_region = 0;
+      self.pos_line = 0;
+      self.line = 0;
+
+      // Change mode only if there was no input. Otherwise whoever appended
+      // input is responsible to manage tokenizer state. This is by design so,
+      // because different situations can require different behavior.
+      if let TokenizerState::ExpectInput = self.state {
+         self.state = TokenizerState::ExpectDefered;
+      }
+
+      Ok(None)
    }
 }
 

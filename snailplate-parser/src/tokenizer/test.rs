@@ -147,3 +147,23 @@ fn tokenizer_test_buf_mixed_in_out() {
 
    // If error was returned before, test has passed.
 }
+
+
+
+// cargo test -F tokenbuf_push_guard tokenizer::test::tokenizer_src_push -- --nocapture
+#[test]
+fn tokenizer_src_push() {
+   println!("Tokenizer src_push test");
+   let mut t = Tokenizer::new();
+
+   if let Err(e) = t.src_push(None, "test".into()){
+      panic!("Expected Ok(None), got: Err({:?})", e);
+   }
+
+   if let Err(e) = t.src_push(None, "test".into()){
+      panic!("Expected Ok(None), got: Err({:?})", e);
+   }
+
+   // TODO: it would be nice to implement some tests that exhaust tokenbuf region
+   // Vec memory, so that we can test if correct error return code is returned.
+}
