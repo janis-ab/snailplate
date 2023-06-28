@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Tokenizer.span_slice with 1 test
 - 2 tests for Tokenizer.tokenbuf
 - Tokenizer.tokenbuf push/consume methods
 - 2 tests for fmt::Debug on Token and TokenBody

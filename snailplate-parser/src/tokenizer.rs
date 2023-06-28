@@ -443,9 +443,46 @@ impl Tokenizer {
 
       Ok(None)
    }
+
+
+
+   // It is not allowed to print anything in this function because it will be
+   // used from SpanFormatter trait impl, that will be called from
+   // std::fmt::Debug. This caught me by surprise once. It seems that
+   // println! writes in the same buffer as fmt::Debug? Maybe they both use
+   // stdout? But the weird part is that output texts overlay.
+   pub fn span_slice<'a>(&'a self, span: &'a Span) -> Option<&'a [u8]> {
+      // Someone has given us wrong Span. It is impossible to trigger
+      // this error unless Span was constructed manually or there is a
+      // bug in code.
+      if let TokenizerState::ExpectInput = self.state {
+         return None;
+      }
+
+      // Wrong Span (out of bounds).
+      if span.index > self.region.len() - 1 {
+         return None;
+      }
+
+      let src = &self.region[span.index];
+      let inf = src.len() + 1;
+
+      // This implicitly checks for "span.src_pos >= inf" as well.
+      if span.pos_region + span.length >= inf {
+         return None;
+      }
+
+      let start = span.pos_region;
+      let end = span.pos_region + span.length;
+
+      Some(&src[start..end])
+   }
 }
 
 
 
 #[cfg(test)]
 mod test;
+
+#[cfg(test)]
+mod test_span;
