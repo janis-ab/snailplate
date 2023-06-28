@@ -5,7 +5,9 @@ use crate::{
 };
 
 
+
 // Tokenizer states.
+#[derive(Debug)]
 pub enum TokenizerState {
    /// This is the initial state for Tokenizer. In this state user is not
    /// allowed to invoke iterator::next, since there is no source to tokenize.
@@ -44,6 +46,7 @@ pub enum TokenizerState {
 // was parsed.
 //
 // Fields in general have the same meaning as for Tokenizer struct.
+#[derive(Debug)]
 struct StateSnap {
    pos_region: usize,
    pos_zero: usize,
@@ -60,6 +63,9 @@ struct StateSnap {
 
 // Each time when some source is pushed in region Vec, we store some information
 // that is useful to make errors/warnings more verbose.
+// We will need to read this only in Parser code, so for now ignore warnings.
+#[derive(Debug)]
+#[allow(dead_code)]
 struct SrcRegionMeta {
    // index for region from which this region was included from
    index: usize,
@@ -84,6 +90,7 @@ struct SrcRegionMeta {
 /// Tokenizer struct stores internal state for Tokenizer. Each time a new byte
 /// is read, it increases pos_*, line values, once Token is recognized, those
 /// values are copied into Span token that is wrapped with returned Token.
+#[derive(Debug)]
 pub struct Tokenizer {
    /// This is the index for current active region string. This will be cloned
    /// into Span when token is recognized.
