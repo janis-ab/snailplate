@@ -170,9 +170,9 @@ impl Tokenizer {
    // state to Failed, but i already keep forgetting to do that too often, thus
    // create function to resolve that and forget this forever.
    #[inline(always)]
-   fn fail(&mut self, return_token: Token) -> Result<Option<Token>, Token> {
+   fn fail_token(&mut self, return_token: Token) -> Token {
       self.state = TokenizerState::Failed;
-      Err(return_token)
+      return_token
    }
 
 
@@ -180,7 +180,7 @@ impl Tokenizer {
    // Function that allows us to push token into tokenbuf.
    // It is allowed to use tokenbuf in all-in/all-out manner only.
    #[inline(always)]
-   fn tokenbuf_push(&mut self, tok: Token) -> Result<Option<Token>, Token> {
+   fn tokenbuf_push(&mut self, tok: Token) -> Result<(), Token> {
       let tb = &mut self.tokenbuf;
 
       // Ensure that there is enough memory in Vec. This is because push will
@@ -191,7 +191,9 @@ impl Tokenizer {
       let len = tb.len();
       if cap < len + 1 {
          if let Err(..) = tb.try_reserve(16) {
-            return self.fail(Token::Fatal(ParseError::NoMemory));
+            return Err(self.fail_token(
+               Token::Fatal(ParseError::NoMemory)
+            ));
          }
       }
 
@@ -214,14 +216,16 @@ impl Tokenizer {
       // that were parsed and then return them in iterator till buffer is empty.
       #[cfg(feature = "tokenbuf_push_guard")] {
          if len != self.num_tokens {
-            return self.fail(Token::Fatal(ParseError::InternalError));
+            return Err(self.fail_token(
+               Token::Fatal(ParseError::InternalError)
+            ));
          }
       }
 
       self.tokenbuf.push(tok);
       self.num_tokens += 1;
 
-      Ok(None)
+      Ok(())
    }
 
 
@@ -256,13 +260,16 @@ impl Tokenizer {
          num_tokens: {}, num_in_buf: {}", num_tokens, num_in_buf
          );
 
-         return self.fail(Token::Fatal(ParseError::TokenbufBroken(Span {
-               index: self.index, pos_region: self.pos_region,
-               pos_line: self.pos_line, pos_zero:self.pos_zero,
-               line: self.line, length: 0
-            },
-            msg, num_tokens_prev, len_prev
-         )));
+         return Err(self.fail_token(
+            Token::Fatal(ParseError::TokenbufBroken(
+               Span {
+                  index: self.index, pos_region: self.pos_region,
+                  pos_line: self.pos_line, pos_zero:self.pos_zero,
+                  line: self.line, length: 0
+               },
+               msg, num_tokens_prev, len_prev
+            ))
+         ));
       }
 
       let idx_item = num_in_buf - num_tokens;
@@ -295,13 +302,16 @@ impl Tokenizer {
             "There was no item in accessed index: {}.", idx_item
          );
 
-         return self.fail(Token::Fatal(ParseError::TokenbufBroken(Span {
-               index: self.index, pos_region: self.pos_region,
-               pos_line: self.pos_line, pos_zero:self.pos_zero,
-               line: self.line, length: 0
-            },
-            msg, num_tokens_prev, len_prev
-         )));
+         return Err(self.fail_token(
+            Token::Fatal(ParseError::TokenbufBroken(
+               Span {
+                  index: self.index, pos_region: self.pos_region,
+                  pos_line: self.pos_line, pos_zero:self.pos_zero,
+                  line: self.line, length: 0
+               },
+               msg, num_tokens_prev, len_prev
+            ))
+         ));
       };
 
       #[cfg(feature = "dbg_tokenbuf_verbose")] {
@@ -340,13 +350,16 @@ impl Tokenizer {
             // require ParseError to be able to store Token, which is not
             // possible. But anyways this should give us enough information
             // to detect error.
-            return self.fail(Token::Fatal(ParseError::TokenbufBroken(Span {
-                  index: self.index, pos_region: self.pos_region,
-                  pos_line: self.pos_line, pos_zero:self.pos_zero,
-                  line: self.line, length: 0
-               },
-               msg, num_tokens_prev, len_prev,
-            )));
+            return Err(self.fail_token(
+               Token::Fatal(ParseError::TokenbufBroken(
+                  Span {
+                     index: self.index, pos_region: self.pos_region,
+                     pos_line: self.pos_line, pos_zero:self.pos_zero,
+                     line: self.line, length: 0
+                  },
+                  msg, num_tokens_prev, len_prev,
+               ))
+            ));
          }
 
          // At this point returned token is oficially recognized, so we
@@ -376,7 +389,9 @@ impl Tokenizer {
       let len = ss.len();
       if cap < len + 1 {
          if let Err(..) = ss.try_reserve(8){
-            return self.fail(Token::Fatal(ParseError::NoMemory));
+            return Err(self.fail_token(
+               Token::Fatal(ParseError::NoMemory)
+            ));
          }
       }
 
@@ -400,7 +415,9 @@ impl Tokenizer {
       let len = rm.len();
       if cap < len + 1 {
          if let Err(..) = rm.try_reserve(16) {
-            return self.fail(Token::Fatal(ParseError::NoMemory));
+            return Err(self.fail_token(
+               Token::Fatal(ParseError::NoMemory)
+            ));
          }
       }
 
@@ -426,7 +443,9 @@ impl Tokenizer {
       let len = r.len();
       if cap < len + 1 {
          if let Err(..) = r.try_reserve(16) {
-            return self.fail(Token::Fatal(ParseError::NoMemory));
+            return Err(self.fail_token(
+               Token::Fatal(ParseError::NoMemory)
+            ));
          }
       }
 

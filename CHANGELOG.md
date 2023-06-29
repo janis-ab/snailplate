@@ -8,7 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Implemented Iterator that is capable to consume items from tokenbuf for Tokenizer.
+- Renamed Tokenizer.fail to fail_token and refactred it so that it can be
+  reused for different return contexts like Result, Option, raw Token. 
+- Implemented Iterator that is capable to consume items from tokenbuf for 
+  Tokenizer.
 - Implemented SpanFormatter for Tokenizer
 - Tokenizer.span_slice with 1 test
 - 2 tests for Tokenizer.tokenbuf
