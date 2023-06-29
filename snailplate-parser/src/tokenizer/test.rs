@@ -167,3 +167,83 @@ fn tokenizer_src_push() {
    // TODO: it would be nice to implement some tests that exhaust tokenbuf region
    // Vec memory, so that we can test if correct error return code is returned.
 }
+
+
+
+// cargo test tokenizer::test::test_tokenizer_return_tokenized_01 -- --nocapture
+#[test]
+fn test_tokenizer_return_tokenized_01(){
+   println!("Tokenizer src_push test");
+   let mut t = Tokenizer::new();
+
+   if let Err(e) = t.src_push(None, "AAABBB".into()){
+      panic!("Expected Ok(None), got: Err({:?})", e);
+   }
+
+   //
+   // Test if this token will update Tokenizers positions.
+   //
+   if let Some(token) = t.return_tokenized(Token::Real(TokenBody::Defered(Span {
+      index: 0, line: 0, pos_region: 0, pos_zero: 0, pos_line: 0, length: 3
+   }))) {
+      if let Token::Real(..) = token {
+         println!("token: {:?}", token);
+         println!("tokenizer: {:?}", t);
+      }
+      else {
+         panic!("Bad token returned from Tokenizer! Expected Token::Real, got {:?}", token);
+      }
+   }
+   else {
+      panic!("Token-1 was not returned!");
+   }
+
+   assert_eq!(t.index, 0);
+   assert_eq!(t.pos_region, 3);
+   assert_eq!(t.pos_line, 3);
+   assert_eq!(t.pos_zero, 3);
+
+   //
+   // Test if Token without span, leaves Tokenizer positions as is.
+   //
+   if let Some(token) = t.return_tokenized(Token::StateChange) {
+      if let Token::StateChange = token {
+         println!("token: {:?}", token);
+         println!("tokenizer: {:?}", t);
+      }
+      else {
+         panic!("Bad token returned from Tokenizer! Expected Token::StateChange, got {:?}", token);
+      }
+   }
+   else {
+      panic!("Token-2 was not returned!");
+   }
+   
+   assert_eq!(t.index, 0);
+   assert_eq!(t.pos_region, 3);
+   assert_eq!(t.pos_line, 3);
+   assert_eq!(t.pos_zero, 3);
+
+   //
+   // Test if second token will update Tokenizers positions.
+   //
+   if let Some(token) = t.return_tokenized(Token::Real(TokenBody::Defered(Span {
+      index: 0, line: 0, pos_region: 3, pos_zero: 3, pos_line: 3, length: 3
+   }))) {
+      if let Token::Real(..) = token {
+         println!("token: {:?}", token);
+         println!("tokenizer: {:?}", t);
+      }
+      else {
+         panic!("Bad token returned from Tokenizer! Expected Token::Real, got {:?}", token);
+      }
+   }
+   else {
+      panic!("Token-1 was not returned!");
+   }
+
+   assert_eq!(t.index, 0);
+   assert_eq!(t.pos_region, 6);
+   assert_eq!(t.pos_line, 6);
+   assert_eq!(t.pos_zero, 6);
+}

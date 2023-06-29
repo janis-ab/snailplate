@@ -8,7 +8,6 @@ mod formatter;
 mod iterator;
 
 
-
 // Tokenizer states.
 #[derive(Debug)]
 pub enum TokenizerState {
@@ -464,6 +463,60 @@ impl Tokenizer {
       }
 
       Ok(None)
+   }
+
+
+
+   // Since every time when we return token, we must update Tokenizer positions,
+   // it is better to have a function that does that for us, so that we do not
+   // forget to update some fields.
+   #[inline(always)]
+   fn return_tokenized(&mut self, tok: Token) -> Option<Token> {
+      // Only tokens that have Span do update Tokenizers current postion
+      // variable values.
+      // TODO: we could implement tok.span_borrow that works more efficiently
+      // and use it here instead of span_clone.
+      if let Some(span) = tok.span_clone() {
+         let pos_region = span.pos_region;
+         let pos_zero = span.pos_zero;
+         let pos_line = span.pos_line;
+         let line = span.line;
+
+         #[cfg(not(feature = "unguarded_tokenizer_integrity"))] {
+            if self.index != span.index {
+               return Some(self.fail_token(Token::Fatal(
+                  ParseError::InternalError
+               )));
+            }
+
+            // "Next" returned token must always start at the position where
+            // Tokenizer is at. It is not allowed to have gaps. If we need gaps,
+            // then we should implement token with special body type "Skip" or
+            // maybe use Phantom token. While technically there is no problem
+            // with skipping some bytes, i think that enforcing this will avoid
+            // us from having hard to detect errors.
+            if (self.pos_region != pos_region)
+            || (self.pos_line != pos_line)
+            || (self.pos_zero != pos_zero)
+            || (self.line != line)
+            {
+               return Some(self.fail_token(Token::Fatal(
+                  ParseError::InternalError
+               )));
+            }
+         }
+         let len_token = span.length;
+
+         // While here we could increase each property by len_token, i believe
+         // this is more explicit and maybe "faster" since variables might be in
+         // CPU registers.
+         self.pos_region = pos_region + len_token;
+         self.pos_zero = pos_zero + len_token;
+         self.pos_line = pos_line + len_token;
+         self.line = line;
+      }
+
+      Some(tok)
    }
 
 

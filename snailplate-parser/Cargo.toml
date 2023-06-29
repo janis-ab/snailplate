@@ -13,6 +13,11 @@ tokenbuf_push_guard = []
 # When enabled, all tokenbuf actions will print useful output.
 dbg_tokenbuf_verbose = []
 
+# By default library compiles in various value checks for unexpected cases, such
+# as bad positions, sizes for tokens, etc. It is allowed to remove those guards
+# to increase tokenization speed at the cost of integrity safeties.
+unguarded_tokenizer_integrity = []
+
 
 
 # To test all features, run:
