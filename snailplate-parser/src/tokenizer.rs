@@ -5,6 +5,7 @@ use crate::{
 };
 
 mod formatter;
+mod iterator;
 
 
 
@@ -488,3 +489,6 @@ mod test;
 
 #[cfg(test)]
 mod test_span;
+
+#[cfg(test)]
+mod test_iterator;

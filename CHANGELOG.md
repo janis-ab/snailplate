@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Implemented Iterator that is capable to consume items from tokenbuf for Tokenizer.
 - Implemented SpanFormatter for Tokenizer
 - Tokenizer.span_slice with 1 test
 - 2 tests for Tokenizer.tokenbuf
