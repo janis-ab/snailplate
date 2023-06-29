@@ -4,6 +4,8 @@ use crate::{
    ParseError,
 };
 
+mod formatter;
+
 
 
 // Tokenizer states.
