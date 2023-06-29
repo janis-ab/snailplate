@@ -70,6 +70,7 @@ impl Token {
             },
             Pe::NoMemory => None,
             Pe::InternalError => None,
+            Pe::None => None,
          }
          T::StateChange => None
       }
@@ -100,6 +101,9 @@ impl<'a, F: SpanFormatter> std::fmt::Debug for TokenFormatWrapper<'a, F> {
             }
             Pe::InternalError => {
                (Some("Fatal(InternalError("), Some("))"), None)
+            }
+            Pe::None => {
+               (Some("Fatal(None("), Some("))"), None)
             }
          }
          T::StateChange => (Some("StateChange"), None, None),

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Tokenizer.parse_error_prev.
 - Implemented Tokenizer.return_tokenized.
 - Renamed Tokenizer.fail to fail_token and refactred it so that it can be
   reused for different return contexts like Result, Option, raw Token. 
@@ -22,3 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Token, TokenBody, Span structs
 - Initial readme that describes goals for this project
 - Project license, code of conduct
+
+### Changed
+- Tokenizer.return_tokenized now updates index and restores state from state_snap.
+  Removed similad code part to return_tokenized from tokenbuf_consume, since now
+  it can be handled by return_tokenized and there is no need to handle same cases
+  in multiple places. Since this changed the behavior for tokenbuf, had to make
+  some minor modifications to Iterator. Created test, that tokenizes whole
+  input as defered tokens; this is to test if return_tokenized works as expected.

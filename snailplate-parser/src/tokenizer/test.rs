@@ -247,3 +247,77 @@ fn test_tokenizer_return_tokenized_01(){
    assert_eq!(t.pos_line, 6);
    assert_eq!(t.pos_zero, 6);
 }
+
+
+
+// cargo test tokenizer::test::test_tokenizer_defered_tokenize_01 -- --nocapture
+#[test]
+fn test_tokenizer_defered_tokenize_01(){
+   println!("Tokenizer src_push test");
+   let mut t = Tokenizer::new();
+
+   if let Err(e) = t.src_push(None, "CCC".into()){
+      panic!("Expected Ok(None), got: Err({:?})", e);
+   }
+
+   if let Err(e) = t.src_push(None, "BBB".into()){
+      panic!("Expected Ok(None), got: Err({:?})", e);
+   }
+
+   if let Err(e) = t.src_push(None, "AAA".into()){
+      panic!("Expected Ok(None), got: Err({:?})", e);
+   }
+
+   // TODO: For now this is a rough test, but we should implement some easier
+   // testing API, so that we provide list with exact tokens we want to receive
+   // and compare them in single call.
+
+   if let Some(token) = t.defered_tokenize() {
+      let span = token.span_clone();
+      if let Some(span) = span {
+         assert_eq!(span.index, 2, 
+            "Span-1 does not contain values as expected. Span: {:?}", span
+         );
+      }
+      else {
+         panic!("Token does not have span. Token: {:?}", token);
+      }
+   }
+   else {
+      panic!("Token-1 is None!");
+   }
+
+
+   if let Some(token) = t.defered_tokenize() {
+      let span = token.span_clone();
+      if let Some(span) = span {
+         assert_eq!(span.index, 1, 
+            "Span-1 does not contain values as expected. Span: {:?}", span
+         );
+      }
+      else {
+         panic!("Token does not have span. Token: {:?}", token);
+      }
+   }
+   else {
+      panic!("Token-1 is None!");
+   }
+
+
+   if let Some(token) = t.defered_tokenize() {
+      let span = token.span_clone();
+      if let Some(span) = span {
+         assert_eq!(span.index, 0, 
+            "Span-1 does not contain values as expected. Span: {:?}", span
+         );
+      }
+      else {
+         panic!("Token does not have span. Token: {:?}", token);
+      }
+   }
+   else {
+      panic!("Token-1 is None!");
+   }
+}
+
+

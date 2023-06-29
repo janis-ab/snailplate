@@ -22,7 +22,7 @@ impl Iterator for Tokenizer {
                   #[cfg(feature = "dbg_tokenbuf_verbose")] {
                      println!("Tokenizer: return buffered token: {:?}", tok);
                   }
-                  return Some(tok);
+                  return self.return_tokenized(tok);
                }
                else {
                   #[cfg(feature = "dbg_tokenbuf_verbose")] {

@@ -1,5 +1,6 @@
 use crate::{
    token::Token,
+   tokenbody::TokenBody,
    span::Span,
    ParseError,
 };
@@ -51,7 +52,6 @@ pub enum TokenizerState {
 #[derive(Debug)]
 struct StateSnap {
    pos_region: usize,
-   pos_zero: usize,
    pos_line: usize,
    line: usize,
 
@@ -109,6 +109,9 @@ pub struct Tokenizer {
    /// This is a line position in current region. Copied into Span.
    pos_line: usize,
 
+   /// This stores current max allowed position in region.
+   pos_max: usize,
+
    /// This is a line number in current region. Copied into Span.
    line: usize,
 
@@ -142,6 +145,12 @@ pub struct Tokenizer {
    // leave it at the end of the struct so if struct is too big to fit in single
    // CPU cache line, it is in next line.
    region_meta: Vec<SrcRegionMeta>,
+
+   // Previous ParseError. This is set when Tokenizer has some error. If this
+   // error is InternalError, then Tokenizer should not add anyting to tokenbuf.
+   // If this error is InternalError, it should never be changed to anything 
+   // other (less fatal).
+   parse_error_prev: ParseError,
 }
 
 
@@ -154,12 +163,14 @@ impl Tokenizer {
          pos_zero: 0,
          pos_region: 0,
          pos_line: 0,
+         pos_max: 0,
          line: 0,
          num_tokens: 0,
          tokenbuf: Vec::with_capacity(16),
          region: Vec::with_capacity(8),
          region_meta: Vec::with_capacity(8),
          state_snap: Vec::with_capacity(8),
+         parse_error_prev: ParseError::None,
       }
    }
 
@@ -328,45 +339,6 @@ impl Tokenizer {
          self.tokenbuf.clear();
       }
 
-      // Tokens that have a span, change Tokenizers position. Non-span tokens
-      // are just informative tokens that do not change Tokenizers position.
-      if let Some(span) = token.span_clone() {
-         // At first i thought that maybe this should be a feature flag, but
-         // then i realized that one little if statement is far better than
-         // wrong parse results.
-         if self.pos_region != span.pos_region {
-            // Unfortunateley we must alter tokenbuf state.
-            let num_tokens_prev = self.num_tokens;
-            let len_prev = self.tokenbuf.len();
-            self.num_tokens = 0;
-            self.tokenbuf.clear();
-
-            let msg = format!(
-               "Tokenizer.pos_region != Span.pos_region. Token: {:?}", token
-            );
-
-            // It is not possible to return whole token, since that would
-            // require ParseError to be able to store Token, which is not
-            // possible. But anyways this should give us enough information
-            // to detect error.
-            return Err(self.fail_token(
-               Token::Fatal(ParseError::TokenbufBroken(
-                  Span {
-                     index: self.index, pos_region: self.pos_region,
-                     pos_line: self.pos_line, pos_zero:self.pos_zero,
-                     line: self.line, length: 0
-                  },
-                  msg, num_tokens_prev, len_prev,
-               ))
-            ));
-         }
-
-         // At this point returned token is oficially recognized, so we
-         // update current position acordingly.
-         self.pos_region += span.length;
-         self.pos_zero += span.length;
-      }
-
       Ok(Some(token))
    }
 
@@ -396,7 +368,6 @@ impl Tokenizer {
 
       ss.push(StateSnap {
          pos_region: self.pos_region,
-         pos_zero: self.pos_zero,
          pos_line: self.pos_line,
          line: self.line,
          index: self.index,
@@ -448,6 +419,8 @@ impl Tokenizer {
          }
       }
 
+      self.pos_max = buf.len();
+
       r.push(buf);
 
       self.index = self.region.len() - 1;
@@ -467,9 +440,52 @@ impl Tokenizer {
 
 
 
+   #[inline(always)]
+   fn defered_tokenize(&mut self) -> Option<Token> {
+      let src = &self.region[self.index];
+      let pos_start = self.pos_region;
+      let pos_max = src.len();
+      let line_start = self.line;
+
+      // TODO: here we should iterate through each character and change states
+      // for Tokenizer. No matter how tokenization goes while iterating, there
+      // always will be some chars that are left unmatched, since in loop we
+      // can not know what is the expected token type unless all the necessary
+      // data is available.
+
+      //
+      // Code below deals with correct leftover handling. It either returns
+      // last available bytes as Defered or consumes current region and does
+      // state_snap.pop().
+      //
+
+      if pos_start < pos_max {
+         let len_defered = pos_max - pos_start;
+
+         let token = Token::Real(TokenBody::Defered(Span {
+            index: self.index,
+            pos_region: pos_start,
+            pos_zero: self.pos_zero,
+            pos_line: self.pos_line,
+            line: line_start,
+            length: len_defered
+         }));
+
+         return self.return_tokenized(token);
+      }
+
+      None
+   }
+
+
+
    // Since every time when we return token, we must update Tokenizer positions,
    // it is better to have a function that does that for us, so that we do not
    // forget to update some fields.
+   // TODO: currently this function is not capable to correctly handle Tokens
+   // that span over multiple regions. Maybe that can be implemented later
+   // with some feature flags to enable that type of behavior, but currently
+   // that seems like an unnecessary code complexity.
    #[inline(always)]
    fn return_tokenized(&mut self, tok: Token) -> Option<Token> {
       // Only tokens that have Span do update Tokenizers current postion
@@ -484,6 +500,26 @@ impl Tokenizer {
 
          #[cfg(not(feature = "unguarded_tokenizer_integrity"))] {
             if self.index != span.index {
+               #[cfg(feature = "dbg_tokenizer_verbose")]{
+                  println!("ERROR: Tokenizer index mismatch Token positions.");
+               }
+
+               // We can not be sure that tokenbuf_consume or any other function
+               // calls return_tokenized, but we want to preserve returned token
+               // that caused the error in buffer, but in such a case we could
+               // get into infinite loop, which we do not want. This guards
+               // against that iif calling function does not change
+               // parse_error_prev arbitrarily.
+               if let ParseError::InternalError = self.parse_error_prev { }
+               else {
+                  // We are already failing, if this fails as well, there is
+                  // nothing we can do.
+                  #[allow(unused_must_use)] {
+                     self.tokenbuf_push(tok);
+                  }
+                  self.parse_error_prev = ParseError::InternalError;
+               }
+
                return Some(self.fail_token(Token::Fatal(
                   ParseError::InternalError
                )));
@@ -500,6 +536,20 @@ impl Tokenizer {
             || (self.pos_zero != pos_zero)
             || (self.line != line)
             {
+               #[cfg(feature = "dbg_tokenizer_verbose")]{
+                  println!("ERROR: Tokenizer positions mismatch Token positions.");
+               }
+
+               if let ParseError::InternalError = self.parse_error_prev { }
+               else {
+                  // We are already failing, if this fails as well, there is
+                  // nothing we can do.
+                  #[allow(unused_must_use)] {
+                     self.tokenbuf_push(tok);
+                  }
+                  self.parse_error_prev = ParseError::InternalError;
+               }
+
                return Some(self.fail_token(Token::Fatal(
                   ParseError::InternalError
                )));
@@ -514,6 +564,79 @@ impl Tokenizer {
          self.pos_zero = pos_zero + len_token;
          self.pos_line = pos_line + len_token;
          self.line = line;
+
+         // If token span goes over multiple regions, this case can happen.
+         // We do not want to allow it for now, since it would mess up Tokenizer
+         // interna state.
+         if self.pos_region > self.pos_max {
+            self.pos_region = self.pos_max;
+            if let ParseError::InternalError = self.parse_error_prev { }
+            else {
+               // We are already failing, if this fails as well, there is
+               // nothing we can do.
+               #[allow(unused_must_use)] {
+                  self.tokenbuf_push(tok);
+               }
+               self.parse_error_prev = ParseError::InternalError;
+            }
+
+            return Some(self.fail_token(Token::Fatal(
+               ParseError::InternalError
+            )));
+         }
+
+         // If this was last token in current region.
+         if self.pos_max == self.pos_region {
+            // If this is the "root" region, there is no place to fall back.
+            if self.index == 0 {
+               return Some(tok);
+            }
+
+            if let Some(snap) = self.state_snap.pop(){
+               self.index -= 1;
+               self.pos_region = snap.pos_region;
+               self.pos_line = snap.pos_line;
+               self.line = snap.line;
+
+               let src = &self.region[self.index];
+               self.pos_max = src.len();
+
+               #[cfg(not(feature = "unguarded_tokenizer_integrity"))] {
+                  if self.index != snap.index {
+                     if let ParseError::InternalError = self.parse_error_prev { }
+                     else {
+                        // We are already failing, if this fails as well, there
+                        // is nothing we can do.
+                        #[allow(unused_must_use)] {
+                           self.tokenbuf_push(tok);
+                        }
+                        self.parse_error_prev = ParseError::InternalError;
+                     }
+
+                     return Some(self.fail_token(Token::Fatal(
+                        ParseError::InternalError
+                     )));
+                  }
+               }
+
+               return Some(tok);
+            }
+            else {
+               if let ParseError::InternalError = self.parse_error_prev { }
+               else {
+                  // We are already failing, if this fails as well, there is
+                  // nothing we can do.
+                  #[allow(unused_must_use)] {
+                     self.tokenbuf_push(tok);
+                  }
+                  self.parse_error_prev = ParseError::InternalError;
+               }
+
+               return Some(self.fail_token(Token::Fatal(
+                  ParseError::InternalError
+               )));
+            }
+         }
       }
 
       Some(tok)

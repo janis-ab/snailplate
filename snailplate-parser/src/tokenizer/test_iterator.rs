@@ -5,7 +5,7 @@ use crate::{
    span::Span,
 };
 
-// cargo test tokenizer::test_iterator::tokenizer_iterator_test_01 -- --nocapture
+// cargo test -F dbg_tokenizer_verbose tokenizer::test_iterator::tokenizer_iterator_test_01 -- --nocapture
 #[test]
 fn tokenizer_iterator_test_01() {
    println!("Tokenizer iterator test");
@@ -43,7 +43,7 @@ fn tokenizer_iterator_test_01() {
          }
       }
       else {
-         panic!("Bad token-1 returned!");
+         panic!("Bad token-1 returned! Token: {:?}", token);
       }
    }
    else {

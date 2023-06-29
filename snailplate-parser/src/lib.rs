@@ -24,4 +24,8 @@ pub enum ParseError {
    /// or any other component has reached a state that is not allowed. In such
    /// a case, it should be investigated and fixes should be applied to fix it.
    InternalError,
+
+   /// There is no parsing error. This is intended to be used as initial value,
+   /// so that we do not need to use Option<ParseError>.
+   None,
 }
