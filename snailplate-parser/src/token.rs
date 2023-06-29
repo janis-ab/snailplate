@@ -36,8 +36,9 @@ pub enum Token {
    // fatal errors are those that do not allow to continue parsing,
    Fatal(ParseError),
 
-   // TODO: implement casual ParseErrors, ones that allow to continue parsing
-   // template, but compilation should fail.
+   // Error that allows parser to continue parsing template source, but 
+   // fails the compilation of it. Sometimes this is a recoverable error.
+   Error(ParseError),
 
    // TODO: implement warnings; tokens that allow parsing to continue, but emit
    // warnings when template is compiled.
@@ -64,7 +65,8 @@ impl Token {
 
       match &self {
          T::Real(body) | T::Phantom(body) => Some(body.span_clone()),
-         T::Fatal(parse_error) => match parse_error{
+         T::Fatal(parse_error) 
+         | T::Error(parse_error) => match parse_error {
             Pe::TokenbufBroken(span, ..) => {
                Some(span.clone())
             },
@@ -104,6 +106,20 @@ impl<'a, F: SpanFormatter> std::fmt::Debug for TokenFormatWrapper<'a, F> {
             }
             Pe::None => {
                (Some("Fatal(None("), Some("))"), None)
+            }
+         }
+         T::Error(parse_error) => match parse_error {
+            Pe::TokenbufBroken(..) => {
+               (Some("Error(TokenbufBroken("), Some("))"), None)
+            }
+            Pe::NoMemory => {
+               (Some("Error(NoMemory("), Some("))"), None)
+            }
+            Pe::InternalError => {
+               (Some("Error(InternalError("), Some("))"), None)
+            }
+            Pe::None => {
+               (Some("Error(None("), Some("))"), None)
             }
          }
          T::StateChange => (Some("StateChange"), None, None),
