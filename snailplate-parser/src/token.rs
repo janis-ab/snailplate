@@ -1,7 +1,7 @@
 use crate::{
    tokenbody::TokenBody,
    span::{Span, SpanFormatter},
-   ParseError
+   parse_error::ParseError,
 };
 use std::fmt;
 
@@ -65,11 +65,15 @@ impl Token {
 
       match &self {
          T::Real(body) | T::Phantom(body) => Some(body.span_clone()),
-         T::Fatal(parse_error) 
+         T::Fatal(parse_error)
          | T::Error(parse_error) => match parse_error {
             Pe::TokenbufBroken(span, ..) => {
                Some(span.clone())
             },
+            Pe::InstructionError(..) => {
+               // TODO: In future maybe we can construct a meaningful Span object.
+               None
+            }
             Pe::NoMemory => None,
             Pe::InternalError => None,
             Pe::None => None,
@@ -111,6 +115,11 @@ impl<'a, F: SpanFormatter> std::fmt::Debug for TokenFormatWrapper<'a, F> {
             Pe::NoInput => {
                (Some("Fatal(NoInput("), Some("))"), None)
             }
+            Pe::InstructionError(..) => {
+               // TODO: Update whole match return Tuple in such a way, so that
+               // we can print InstructionError data as well.
+               (Some("Fatal(InstructionError(.."), Some("))"), None)
+            }
          }
          T::Error(parse_error) => match parse_error {
             Pe::TokenbufBroken(..) => {
@@ -127,7 +136,13 @@ impl<'a, F: SpanFormatter> std::fmt::Debug for TokenFormatWrapper<'a, F> {
             }
             Pe::NoInput => {
                (Some("Error(NoInput("), Some("))"), None)
-            }         }
+            }
+            Pe::InstructionError(..) => {
+               // TODO: Update whole match return Tuple in such a way, so that
+               // we can print InstructionError data as well.
+               (Some("Fatal(InstructionError(.."), Some("))"), None)
+            }
+         }
          T::StateChange => (Some("StateChange"), None, None),
       };
 

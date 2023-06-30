@@ -4,7 +4,7 @@ use crate::{
       TokenizerState,
    },
    token::Token,
-   ParseError,
+   parse_error::ParseError,
 };
 
 

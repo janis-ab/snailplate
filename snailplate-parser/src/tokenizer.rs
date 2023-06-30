@@ -2,7 +2,7 @@ use crate::{
    token::Token,
    tokenbody::TokenBody,
    span::Span,
-   ParseError,
+   parse_error::ParseError,
 };
 
 mod formatter;
