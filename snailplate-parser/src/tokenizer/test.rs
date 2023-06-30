@@ -32,7 +32,7 @@ fn tokenizer_test_buf_generic() {
       }
    }
 
-   assert_eq!(t.num_tokens, t.tokenbuf.len(), "Bad num_tokens count!");
+   assert_eq!(t.tokenbuf.num_tokens, t.tokenbuf.buf.len(), "Bad num_tokens count!");
 
    for i in 0..3 {
       match t.tokenbuf_consume() {
