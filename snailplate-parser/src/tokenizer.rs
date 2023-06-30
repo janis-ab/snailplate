@@ -682,6 +682,7 @@ impl Tokenizer {
 
 // Function that checks if tokenizer returns tokens that match given list.
 // On error, function returns (expected tken, token got)
+#[cfg(test)]
 fn tokenlist_match_or_fail(t: &mut Tokenizer, list: &Vec<Token>) 
    -> Result<(), (Option<Token>, Option<Token>)>
 {
@@ -696,7 +697,6 @@ fn tokenlist_match_or_fail(t: &mut Tokenizer, list: &Vec<Token>)
       }
 
       if let Some(expect) = list.get(idx) {
-
          if *expect != token {
             return Err((Some((*expect).clone()), Some(token)));
          }
@@ -706,6 +706,13 @@ fn tokenlist_match_or_fail(t: &mut Tokenizer, list: &Vec<Token>)
       }
 
       idx += 1;
+   }
+
+   // Tokenizer returned less Tokens than expected.
+   if idx < idx_oob {
+      if let Some(expect) = list.get(idx) {
+         return Err((Some((*expect).clone()), None));
+      }
    }
 
    Ok(())

@@ -119,3 +119,62 @@ fn tokenizer_iterator_test_02() {
 }
 
 
+
+// This tests if tokenizer returns correctly buffered tokens before returning 
+// error Token, since there is no input. This test in a way is unnatural when 
+// compared to real life scenario, but while developing, this is what i have.
+// cargo test tokenizer::test_iterator::tokenizer_iterator_test_03 -- --nocapture
+#[test]
+fn tokenizer_iterator_test_03() {
+   println!("Starging iterator test01");
+   let mut t = Tokenizer::new();
+
+   // This is just a dummy buffer contents, so that Tokenizer does not panic.
+   #[allow(unused_must_use)] {
+      t.src_push(None, "XXXXXXX".into());
+   }
+
+   //
+   // Artificially parse Tokenizers string buffer.
+   //
+
+   #[allow(unused_must_use)] {
+      t.tokenbuf_push(Token::Phantom(TokenBody::Defered(Span {
+         index: 0, line: 0, pos_line: 0, pos_region: 0, pos_zero: 0, length: 1
+      })));
+   }
+
+   #[allow(unused_must_use)] {
+      t.tokenbuf_push(Token::Phantom(TokenBody::Defered(Span {
+         index: 0, line: 0, pos_line: 1, pos_region: 1, pos_zero: 1, length: 5
+      })));
+   }
+
+   #[allow(unused_must_use)] {
+      t.tokenbuf_push(Token::Phantom(TokenBody::Defered(Span {
+         index: 0, line: 0, pos_line: 6, pos_region: 6, pos_zero: 6, length: 1
+      })));
+   }
+
+   //
+   // Test tokenized list.
+   //
+
+   let list: Vec<Token> = [
+      Token::Phantom(TokenBody::Defered(Span {
+         index: 0, line: 0, pos_line: 0, pos_region: 0, pos_zero: 0, length: 1
+      })),
+      Token::Phantom(TokenBody::Defered(Span {
+         index: 0, line: 0, pos_line: 1, pos_region: 1, pos_zero: 1, length: 5
+      })),
+      Token::Phantom(TokenBody::Defered(Span {
+         index: 0, line: 0, pos_line: 6, pos_region: 6, pos_zero: 6, length: 1
+      })),
+   ].to_vec();
+
+   if let Err((expect, got)) = tokenlist_match_or_fail(&mut t, &list){
+      panic!("Token mismatch. Expect: {:?} vs got: {:?}", expect, got);
+   }
+}
+
+
