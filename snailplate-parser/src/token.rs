@@ -73,6 +73,7 @@ impl Token {
             Pe::NoMemory => None,
             Pe::InternalError => None,
             Pe::None => None,
+            Pe::NoInput => None,
          }
          T::StateChange => None
       }
@@ -107,6 +108,9 @@ impl<'a, F: SpanFormatter> std::fmt::Debug for TokenFormatWrapper<'a, F> {
             Pe::None => {
                (Some("Fatal(None("), Some("))"), None)
             }
+            Pe::NoInput => {
+               (Some("Fatal(NoInput("), Some("))"), None)
+            }
          }
          T::Error(parse_error) => match parse_error {
             Pe::TokenbufBroken(..) => {
@@ -121,7 +125,9 @@ impl<'a, F: SpanFormatter> std::fmt::Debug for TokenFormatWrapper<'a, F> {
             Pe::None => {
                (Some("Error(None("), Some("))"), None)
             }
-         }
+            Pe::NoInput => {
+               (Some("Error(NoInput("), Some("))"), None)
+            }         }
          T::StateChange => (Some("StateChange"), None, None),
       };
 

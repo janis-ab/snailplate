@@ -1,6 +1,10 @@
 use crate::{
-   tokenizer::Tokenizer,
+   tokenizer::{
+      Tokenizer,
+      TokenizerState,
+   },
    token::Token,
+   ParseError,
 };
 
 
@@ -10,6 +14,8 @@ impl Iterator for Tokenizer {
 
    #[inline]
    fn next(&mut self) -> Option<Self::Item> {
+      use TokenizerState as Ts;
+
       // We allow to consume tokenbuf even if Tokenizer is in failed state. This
       // is so that user can receive all warning/error tokens up to the point
       // where Tokenizer failed.
@@ -43,7 +49,32 @@ impl Iterator for Tokenizer {
          }
       }
 
-      // TODO: implement source tokenization based on Tokenizer state
-      None
+      match self.state {
+         Ts::ExpectDefered => {
+            self.defered_tokenize()
+         }
+         Ts::Failed => {
+            None
+         }
+         Ts::ExpectInput => {
+            if let ParseError::NoInput = self.parse_error_prev {
+               None
+            }
+            else {
+               self.parse_error_prev = ParseError::NoInput;
+
+               // TODO: I don't know if in this case tokenizer state should be
+               // set to "failed". Because this is a wrong way to use this
+               // tokenizer (call without input), but it does not do too much
+               // damage to anything, since tokenizer can stay at almost initial
+               // state. If we did set state to failed here, then we would have
+               // to write special recovery code in src_push function. Maybe that
+               // is the right way to do.
+               Some(Token::Error(ParseError::NoInput))
+            }
+         }
+      }
    }
 }
+
+

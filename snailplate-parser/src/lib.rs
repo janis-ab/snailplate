@@ -25,6 +25,10 @@ pub enum ParseError {
    /// a case, it should be investigated and fixes should be applied to fix it.
    InternalError,
 
+   /// This error is returned when Iterator is built but no input was loaded
+   /// for tokenizer.
+   NoInput,
+
    /// There is no parsing error. This is intended to be used as initial value,
    /// so that we do not need to use Option<ParseError>.
    None,
