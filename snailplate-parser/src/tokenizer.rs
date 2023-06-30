@@ -7,6 +7,7 @@ use crate::{
 
 mod formatter;
 mod iterator;
+mod ident;
 
 
 // Tokenizer states.
@@ -687,3 +688,6 @@ mod test_span;
 
 #[cfg(test)]
 mod test_iterator;
+
+#[cfg(test)]
+mod test_ident;
