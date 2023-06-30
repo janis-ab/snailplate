@@ -3,6 +3,7 @@ use crate::{
    token::Token,
    tokenbody::TokenBody,
    span::Span,
+   parse_error::ParseError,
 };
 
 use super::tokenlist_match_or_fail;
@@ -175,6 +176,36 @@ fn tokenizer_iterator_test_03() {
    if let Err((expect, got)) = tokenlist_match_or_fail(&mut t, &list){
       panic!("Token mismatch. Expect: {:?} vs got: {:?}", expect, got);
    }
+}
+
+
+
+// This tests if tokenizer returns correct error Token, if there is no input and
+// iterator is built and called.
+// cargo test -F dbg_tokenbuf_verbose tokenizer::test_iterator::tokenizer_iterator_test_04 -- --nocapture
+#[test]
+fn tokenizer_iterator_test_04() {
+   println!("Starging iterator test01");
+   let t = Tokenizer::new();
+
+   let mut num_token = 0;
+
+   for token in t {
+      num_token += 1;
+      if let Token::Error(parse_error) = token {
+         if let ParseError::NoInput = parse_error {
+            // This is good.
+         }
+         else {
+            panic!("Expected ParseError::NoInput, got: {:?}", parse_error);
+         }
+      }
+      else {
+         panic!("Expected Token::Error, got: {:?}", token);
+      }
+   }
+
+   assert_eq!(num_token, 1, "We expect to have exactly one token and it should be an error.");
 }
 
 
