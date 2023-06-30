@@ -11,13 +11,19 @@ reasoning and decission made.
 When i started to implement Tokenizer, i used simple Vec as a token buffer. It
 turned out not to be a good enough idea. The problem with that approach is that
 there is a function Tokenizer.tokenbuf_push which takes &mut Tokenizer, but in
-some cases when analyzing input source we take &self.region[index] reference,
+some cases when analyzing input source we take `&self.region[index]` reference,
 thus it makes it impossible to push any new token while read reference is held.
 This is imposed by Rust's borrow checker.
 
 Thus i have decided to refactor TokenBuf out as a separate struct. For now it
 is not intended to be used by anything else but Tokenizer, thus will not move it
 to separate module.
+
+Now it is possible to access input source and tokenbuf at the same time using
+```rust
+let src = &self.region[index];
+let tb = &mut self.tokenbuf;
+```
 </details>
 
 
