@@ -5,7 +5,7 @@ use std::fmt;
 ///
 /// Span is used to describe tokens, such as tags, braces, etc., regions such
 /// as double quoted strings, tag argument lists, etc.
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Span {
    /// Index for buffer used by Tokenizer to store Span data. It is possible 
    // that Span goes over multiple regions, in those cases index describes the

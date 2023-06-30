@@ -9,7 +9,7 @@ use std::fmt;
 
 
 /// Structure that describes token type and span.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum TokenBody {
    /// This token is returned when @include is matched, it's span does not 
    /// envelop opening parenthesis, because we must allow parser to detect

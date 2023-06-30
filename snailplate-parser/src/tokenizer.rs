@@ -246,8 +246,8 @@ impl Tokenizer {
    #[inline(always)]
    fn tokenbuf_consume(&mut self) -> Result<Option<Token>, Token> {
       #[cfg(feature = "dbg_tokenbuf_verbose")] {
-         println!("Tokenbuf: consume index: {}, pos_local: {}",
-            self.index, self.pos_local
+         println!("Tokenbuf: consume index: {}, pos_region: {}",
+            self.index, self.pos_region
          );
       }
 
@@ -676,6 +676,39 @@ impl Tokenizer {
 
       Some(&src[start..end])
    }
+}
+
+
+
+// Function that checks if tokenizer returns tokens that match given list.
+// On error, function returns (expected tken, token got)
+fn tokenlist_match_or_fail(t: &mut Tokenizer, list: &Vec<Token>) 
+   -> Result<(), (Option<Token>, Option<Token>)>
+{
+   let mut idx = 0;
+
+   // This index is out of bounds in relative measure to expected list.
+   let idx_oob = list.len();
+
+   while let Some(token) = t.next() {
+      if idx >= idx_oob {
+         return Err((None, Some(token)));
+      }
+
+      if let Some(expect) = list.get(idx) {
+
+         if *expect != token {
+            return Err((Some((*expect).clone()), Some(token)));
+         }
+      }
+      else {
+         return Err((None, Some(token)));
+      }
+
+      idx += 1;
+   }
+
+   Ok(())
 }
 
 

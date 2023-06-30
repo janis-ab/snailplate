@@ -20,7 +20,7 @@ use std::fmt;
 // code can be reused more, especially for debugging purposes; another advantage
 // that this gives is that any time in future any token can become a Phantom 
 // token, conversion is easy.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Token {
    /// These tokens are content related.
    Real(TokenBody),

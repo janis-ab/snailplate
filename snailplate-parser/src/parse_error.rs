@@ -2,7 +2,7 @@ use crate::span::Span;
 
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct InstructionError {
    pub pos_at: usize
 
@@ -11,7 +11,7 @@ pub struct InstructionError {
 
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum ParseError {
    /// This error is returned from Tokenizer when tokenbuf is not working as
    /// expected
