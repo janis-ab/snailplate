@@ -13,14 +13,6 @@ pub struct InstructionError {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum ParseError {
-   /// This error is returned from Tokenizer when tokenbuf is not working as
-   /// expected
-   /// Some cases require to reset Tokenizers num_tokens and tokenbuf Vec. This
-   /// is why num_tokens, tokenbuf.len() are stored in this returned error last
-   /// usizes. If current Tokenizer state values differ from those in error,
-   /// it means they have been reset to avoid infinite loops.
-   TokenbufBroken(Span, String, usize, usize),
-
    /// This error is returned when memory could not be allocated. This is
    /// highly unlikeley to happen, since most probably in such a case something
    /// might have already called panic!

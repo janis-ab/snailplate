@@ -67,9 +67,6 @@ impl Token {
          T::Real(body) | T::Phantom(body) => Some(body.span_clone()),
          T::Fatal(parse_error)
          | T::Error(parse_error) => match parse_error {
-            Pe::TokenbufBroken(span, ..) => {
-               Some(span.clone())
-            },
             Pe::InstructionError(..) => {
                // TODO: In future maybe we can construct a meaningful Span object.
                None
@@ -100,9 +97,6 @@ impl<'a, F: SpanFormatter> std::fmt::Debug for TokenFormatWrapper<'a, F> {
          T::Real(body) => (Some("Real("), Some(")"), Some(body)),
          T::Phantom(body) => (Some("Phantom("), Some(")"), Some(body)),
          T::Fatal(parse_error) => match parse_error {
-            Pe::TokenbufBroken(..) => {
-               (Some("Fatal(TokenbufBroken("), Some("))"), None)
-            }
             Pe::NoMemory => {
                (Some("Fatal(NoMemory("), Some("))"), None)
             }
@@ -122,9 +116,6 @@ impl<'a, F: SpanFormatter> std::fmt::Debug for TokenFormatWrapper<'a, F> {
             }
          }
          T::Error(parse_error) => match parse_error {
-            Pe::TokenbufBroken(..) => {
-               (Some("Error(TokenbufBroken("), Some("))"), None)
-            }
             Pe::NoMemory => {
                (Some("Error(NoMemory("), Some("))"), None)
             }
