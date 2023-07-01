@@ -54,8 +54,11 @@ pub enum TokenBody {
    Gt(Span),
 
    /// This matches characters that are considered to be whitespaces. For
-   /// example " \t\r\n"
+   /// example " \t\r", but does not include newline. See DD-2023-07-01-01.
    WhiteSpace(Span),
+
+   /// This matches newlines, usually "\n" or "\r\n". See DD-2023-07-01-01.
+   Newline(Span),
 
    /// This token describes template file path for @include, @require directive.
    FilePath(Span),
@@ -85,6 +88,7 @@ impl TokenBody {
          | Tb::Gt(span) 
          | Tb::WhiteSpace(span) 
          | Tb::FilePath(span)       
+         | Tb::Newline(span)
          => {
             let span_clone = *span;
             span_clone
@@ -147,6 +151,8 @@ impl<'a, F: SpanFormatter> fmt::Debug for TokenBodyFormatWrapper<'a, F> {
             => (Some("WhiteSpace("), Some(")")),
          Tb::FilePath(..) 
             => (Some("FilePath("), Some(")")),
+         Tb::Newline(..) 
+            => (Some("Newline("), Some(")")),
       };
 
       if let Some(start) = start {
