@@ -255,7 +255,11 @@ impl TokenBuf {
 
       let tok_ref = self.buf.get(idx_item);
       let token = if let Some(tok_ref) = tok_ref {
-         (*tok_ref).clone()
+         let item = (*tok_ref).clone();
+         #[cfg(feature = "dbg_tokenbuf_verbose")] {
+            println!("Tokenbuf: return item at item: {:?}", item);
+         }
+         item
       }
       else {
          // This is really bad case; bug in code. The only way i see this
@@ -288,6 +292,176 @@ impl TokenBuf {
 
       Ok(Some(token))
    }
+}
+
+
+// Tokenize signle line into two tokens: WhiteSpace and Newline and push
+// results into tokenbuf.
+//
+// Function assumes that everything in provided region is whitespace till the
+// first found 0x0A byte. Function does not analyze if provided region contains
+// only whitespace characters till newline byte; it is callers responsibility.
+//
+// If there is no newline character found, function does not tokenize anything.
+//
+// This function exists just to make whitespace_into_tokenbuf modular, easier to
+// read. It is not intended for reuse.
+//
+// # Arguments
+//
+// * `pos` - mutable reference to start position where whitespice tokenization
+//        should be started. While iterating through bytes, function will update
+//        this value. The goal is so that calling code knows how far bytes have
+//        been parsed.
+//
+// * 'pos_line_base' - mutable reference to variable that describes position in
+//        line. Once a newline character is found, this variable is set to 0.
+//
+// # Return
+//
+// * None - if there was no error while tokenizing specified region.
+// * Some(Token) - returns token, that describes error.
+#[inline(always)]
+fn tokenizer_line_tokenize(tokenbuf: &mut TokenBuf, index: usize, src: &[u8],
+   pos: &mut usize, pos_end: usize, pos_prev: &mut usize, pos_zero_base: usize,
+   parsed_wsp: &mut usize, pos_line_base: &mut usize, line: &mut usize,
+) -> Option<Token> {
+   let mut _pos = *pos;
+   let _pos_prev = *pos_prev;
+
+   while _pos < pos_end {
+      let byte = src[_pos];
+      if let 0x0A = byte {
+         let len_wsp = _pos - _pos_prev;
+
+         if len_wsp > 0 {
+            if let Err(token) = tokenbuf.push(Token::Real(
+               TokenBody::WhiteSpace(Span {
+                  index: index,
+                  pos_region: _pos_prev,
+                  pos_zero: pos_zero_base + *parsed_wsp,
+                  pos_line: *pos_line_base,
+                  line: *line,
+                  length: len_wsp,
+               })
+            )) {
+               return Some(token);
+            }
+         }
+
+         if let Err(token) = tokenbuf.push(Token::Real(
+            TokenBody::Newline(Span {
+               index: index,
+               pos_region: _pos_prev + len_wsp,
+               pos_zero: pos_zero_base + *parsed_wsp + len_wsp,
+               pos_line: *pos_line_base + len_wsp,
+               line: *line,
+               length: 1,
+            })
+         )) {
+            return Some(token);
+         }
+
+         // While we could increase self.pos_line, this gives us no
+         // benefit since noone cares how things are done on the inside
+         // as long as the state from the outside looks correct.
+         // This saves us some processing power.
+
+         _pos += 1;
+         *parsed_wsp += len_wsp + 1;
+         *pos_prev = _pos;
+         *line += 1;
+         *pos_line_base = 0;
+
+         *pos = _pos;
+         return None;
+      }
+
+      _pos += 1;
+   }
+
+   // This case happens when there was no newline found in provided region. This
+   // is not an expected use-case (even if it could be ignored), so we disallow
+   // it with error. Sooner or later the bug will manifest, i'd rather have it
+   // here.
+
+   // TODO: In future should have better internal error location, so we can find
+   // error sooner.
+
+   Some(Token::Fatal(ParseError::InternalError))
+}
+
+
+
+// Tokenize multi-line white-space region into WhiteSpace and Newline tokens and
+// push results into tokenbuf.
+//
+// Function assumes that every byte in provided region is whitespace. Function
+// does not analyze if provided region contains only whitespace characters; it
+// is callers responsibility.
+//
+// If region contains non-white-space characters, they are treated as if
+// white-space characters. No panic call is made.
+//
+// This function exists just to make whitespace_into_tokenbuf modular, easier to
+// read. It is not intended for reuse, thus always inline.
+//
+// # Argument
+//
+// * `pos_region` - position in src where whitespace region starts.
+// * `len_region` - length in bytes for whitespace region. It must include last
+//       newline byte as well.
+//
+// # TODO
+//
+// * Implement "\r\n" recognition as a newline. Now we have only "\n".
+//
+#[inline(always)]
+fn tokenizer_whitespace_tokenize(tokenbuf: &mut TokenBuf, index: usize,
+   src: &[u8], pos_zero: usize, pos_region: usize, len_region: usize,
+   line_start: usize, line_end: usize, pos_line: usize, len_token: usize,
+) -> Option<Token> {
+   let mut num_newlines = line_end - line_start;
+   let pos_end = pos_region + len_region;
+
+   let mut pos = pos_region;
+   let mut pos_prev = pos_region;
+   let mut parsed_wsp = 0;
+   let mut line = line_start;
+
+   let pos_zero_base = pos_zero + len_token;
+   let mut pos_line_base = pos_line + len_token;
+
+   // Tokenize each expected newline into WhiteSpace + Newline tokens.
+   while num_newlines > 0 {
+      if let Some(token) = tokenizer_line_tokenize(tokenbuf, index,
+         src, &mut pos, pos_end, &mut pos_prev, pos_zero_base,
+         &mut parsed_wsp, &mut pos_line_base, &mut line
+      ) {
+         return Some(token);
+      }
+
+      num_newlines -= 1;
+   }
+
+   // Build WhiteSpace token from all that is left without any newline. If
+   // pos is at pos_end, this means that last character was newline
+   if pos_end != pos {
+      if let Err(token) = tokenbuf.push(Token::Real(
+         TokenBody::WhiteSpace(Span {
+            index: index,
+            pos_region: pos,
+            pos_zero: pos_zero_base + parsed_wsp,
+            pos_line: pos_line_base,
+            line: line,
+            length: pos_end - pos,
+         })
+      )) {
+         return Some(token);
+      }
+   }
+
+   None
 }
 
 
@@ -491,9 +665,107 @@ impl Tokenizer {
 
 
 
+   // Tokenize multi-line white-space region into WhiteSpace and Newline tokens and
+   // push results into tokenbuf.
+   //
+   // Intended to be used for template instruction parsing when there is a
+   // white-space region after instruction name. Normally Tokenizer will handle
+   // WhiteSpace and Newline tokens by other means, but when an instruction is
+   // started with @ byte, it is not possible to tell if this will be a valid
+   // instruction. Since we expect errors in source, recognize them and warn
+   // user, we need to be able to parse whitespace between @instruction and
+   // open parenthesis. This function is intended for that.
+   //
+   // Why don't we return WhiteSpace tokens when they are met? Because when
+   // tokenizing template instruction we don't know if it is instruction untill
+   // all significant bytes have matched. Maybe it is not an instruction and
+   // user has forgotten to escape @ symbol, so in that case we would emit
+   // diferent warning/error message to user.
+   //
+   // This function should never change internal positions for tokenizer,
+   // because positions are updated when tokens are really tokenized/returned.
+   // At that time integrity is tested as well. So all positions that are
+   // necessary to fulfil this function must be kept locally.
+   //
+   // This function does not check if provided region is really white-space
+   // only, it splits everything on newline characters and reports anything else
+   // as a WhiteSpace token.
+   //
+   // If bad arguments are provided, this function will return bad results, no
+   // error checking is done. If arguments are out of range, it will panic.
+   //
+   // # Arguments
+   //
+   // * `len_region` - This is the length in bytes for region that has to be
+   //       tokenized as WhiteSpace and Newline Tokens.
+   //
+   // * `line_start` - This is the line number for first character that is at
+   //       position for whitespace region. Since it is not already stored in
+   //       self.line (because it changes only when token is returned), but is
+   //       known by calling code, since we can optimize on this, we take it as
+   //       argument.
+   //
+   // * `line_end` - This is the line number that follows last character in
+   //    given whitespace region. If it matches the line_start, we use fast-path
+   //    for parsing.
+   //
+   // # Return
+   //    Some(Token) - Error-token if any.
+   //    None - On success.
+   #[inline(always)]
+   fn whitespace_into_tokenbuf(&mut self, index: usize,
+      pos_region: usize, len_region: usize, line_start: usize, line_end: usize,
+   )
+      -> Option<Token>
+   {
+      // When there is no data to be tokenized as WhiteSpace, there is nothing
+      // to be pushed, thus it is not an error, just zero Tokens pushed.
+      if len_region < 1 {
+         return None;
+      }
+
+      // This is a length for some token or tokens that have been parsed.
+      let len_token = pos_region - self.pos_region;
+
+      // This is a fast-path for cases when whitespace region does not contain
+      // any newline char.
+      if line_start == line_end {
+         if let Err(token) = self.tokenbuf_push(Token::Real(
+            TokenBody::WhiteSpace(Span {
+               index: index,
+               pos_region: pos_region,
+               pos_zero: self.pos_zero + len_token,
+               pos_line: self.pos_line + len_token,
+               line: line_start,
+               length: len_region,
+            })
+         )) {
+            return Some(token);
+         }
+
+         // TODO: we should buffer warning tokens here as well, since
+         // whitespaces after instruction names are discouraged.
+
+         return None;
+      }
+
+      //
+      // Being here means that line_start != line_end
+      //
+
+      let src = &self.region[index];
+      let mut tokenbuf = &mut self.tokenbuf;
+      tokenizer_whitespace_tokenize(&mut tokenbuf, index, &src, self.pos_zero,
+         pos_region, len_region, line_start, line_end, self.pos_line, len_token
+      )
+   }
+
+
+
    // Since every time when we return token, we must update Tokenizer positions,
    // it is better to have a function that does that for us, so that we do not
    // forget to update some fields.
+   //
    // TODO: currently this function is not capable to correctly handle Tokens
    // that span over multiple regions. Maybe that can be implemented later
    // with some feature flags to enable that type of behavior, but currently
@@ -509,6 +781,10 @@ impl Tokenizer {
          let pos_zero = span.pos_zero;
          let pos_line = span.pos_line;
          let line = span.line;
+
+         #[cfg(feature = "dbg_tokenizer_verbose")]{
+            println!("INFO(Tokenizer): return_tokenized: {:?}", tok);
+         }
 
          #[cfg(not(feature = "unguarded_tokenizer_integrity"))] {
             if self.index != span.index {
@@ -550,6 +826,8 @@ impl Tokenizer {
             {
                #[cfg(feature = "dbg_tokenizer_verbose")]{
                   println!("ERROR: Tokenizer positions mismatch Token positions.");
+                  println!("    {:?}", self);
+                  println!("    Token::{:?}", tok);
                }
 
                if let ParseError::InternalError = self.parse_error_prev { }
@@ -575,7 +853,18 @@ impl Tokenizer {
          self.pos_region = pos_region + len_token;
          self.pos_zero = pos_zero + len_token;
          self.pos_line = pos_line + len_token;
+
          self.line = line;
+         match tok {
+            Token::Real(body)
+            | Token::Phantom(body) => {
+               if let TokenBody::Newline(..) = body {
+                  self.line = line + 1;
+                  self.pos_line = 0;
+               }
+            }
+            _ => { }
+         }
 
          // If token span goes over multiple regions, this case can happen.
          // We do not want to allow it for now, since it would mess up Tokenizer
@@ -691,10 +980,32 @@ impl Tokenizer {
 
 
 
-// Function that checks if tokenizer returns tokens that match given list.
-// On error, function returns (expected tken, token got)
-#[cfg(test)]
-fn tokenlist_match_or_fail(t: &mut Tokenizer, list: &Vec<Token>) 
+// Tests if tokenizer returns tokens that match given list.
+//
+// This function is only necessary for testing, thus it is not even visible
+// in library unless tests are compiled.
+//
+// # Arguments
+//
+// * `list` - What tokens are expected to be returned from current Tokenizer.
+//       This is slice, because more complex testing requires us to test only 
+//       subset of given list at a time.
+//
+// * `unbuffered` - For some tests we do not want to allow Tokenizer to tokenize 
+//       input string, but only return pre-prepared Tokens from tokenbuf. Thus
+//       we set this to true, when Tokenizer is allowed to return as much tokens
+//       as it wants. Set this to false, when Tokenizer is allowed to only 
+//       return tokens from tokenbuf.
+//
+// # Return
+//
+// * Ok(()) - when comparison was successful. All tokens matched.
+//
+// * Err((expected token, returned token)) - this tuple then can be used to
+//       understand what went wrong.
+//
+#[cfg(all(test, not(feature = "tokenlist_match_or_fail_print_only")))]
+fn tokenlist_match_or_fail(t: &mut Tokenizer, list: &[Token], allow_unbuffered: bool)
    -> Result<(), (Option<Token>, Option<Token>)>
 {
    let mut idx = 0;
@@ -702,12 +1013,19 @@ fn tokenlist_match_or_fail(t: &mut Tokenizer, list: &Vec<Token>)
    // This index is out of bounds in relative measure to expected list.
    let idx_oob = list.len();
 
+   // This is a tricky loop, because it must be able to detect if there are
+   // enough items in buffer, if Token consumption is limited, then no more
+   // items can be consumed than allowed.
    while let Some(token) = t.next() {
+      // If tokenizer returns more items than are in expected item buffer,
+      // we must error out. This must be done at iteration start.
       if idx >= idx_oob {
          return Err((None, Some(token)));
       }
 
+      // If there are expected items, compare if they match.
       if let Some(expect) = list.get(idx) {
+         // println!("expected: {:?}, at idx: {}", expect, idx);
          if *expect != token {
             return Err((Some((*expect).clone()), Some(token)));
          }
@@ -717,12 +1035,46 @@ fn tokenlist_match_or_fail(t: &mut Tokenizer, list: &Vec<Token>)
       }
 
       idx += 1;
+
+      // When only tokenbuf must be tested, this is a way to constrain
+      // tokenizer. This must be at the end of the iteration, before next token
+      // is consumed, otherwize Tokenizer would build token from source.
+      if !allow_unbuffered {
+         if t.tokenbuf.buf.len() < 1 {
+            break;
+         }
+      }
+
+      // Being here means that Token comparison succeeded.
    }
 
    // Tokenizer returned less Tokens than expected.
    if idx < idx_oob {
       if let Some(expect) = list.get(idx) {
          return Err((Some((*expect).clone()), None));
+      }
+   }
+
+   Ok(())
+}
+
+
+
+// When we do not want to really test by invoking tokenlist_match_or_fail, but
+// print returned tokens on screen instead. This is helpful when developing
+// tests.
+//
+// All parameters and meaning is the same as for real tokenlist_match_or_fail.
+#[cfg(all(test, feature = "tokenlist_match_or_fail_print_only"))]
+fn tokenlist_match_or_fail(t: &mut Tokenizer, _: &[Token], allow_unbuffered: bool)
+   -> Result<(), (Option<Token>, Option<Token>)>
+{
+   while let Some(token) = t.next() {
+      println!("{:?}", token);
+      if !allow_unbuffered {
+         if t.tokenbuf.buf.len() < 1 {
+            break;
+         }
       }
    }
 
@@ -742,3 +1094,7 @@ mod test_iterator;
 
 #[cfg(test)]
 mod test_ident;
+
+
+
+// ================== EOF: do not write below this ============================

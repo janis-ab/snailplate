@@ -114,7 +114,7 @@ fn tokenizer_iterator_test_02() {
       })),
    ].to_vec();
 
-   if let Err((expect, got)) = tokenlist_match_or_fail(&mut t, &list){
+   if let Err((expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
       panic!("Token mismatch. Expect: {:?} vs got: {:?}", expect, got);
    }
 }
@@ -173,7 +173,7 @@ fn tokenizer_iterator_test_03() {
       })),
    ].to_vec();
 
-   if let Err((expect, got)) = tokenlist_match_or_fail(&mut t, &list){
+   if let Err((expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
       panic!("Token mismatch. Expect: {:?} vs got: {:?}", expect, got);
    }
 }

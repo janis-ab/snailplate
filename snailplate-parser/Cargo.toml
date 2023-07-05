@@ -21,6 +21,11 @@ dbg_tokenizer_verbose = []
 # to increase tokenization speed at the cost of integrity safeties.
 unguarded_tokenizer_integrity = []
 
+# If this feature is set, then tokenlist_match_or_fail will only print received
+# tokens from Tokenized. This feature is intended for snailplate
+# development and testing only.
+tokenlist_match_or_fail_print_only = []
+
 
 
 # To test all features, run:
