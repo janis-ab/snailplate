@@ -2,13 +2,17 @@ use crate::{
    token::Token,
    tokenbody::TokenBody,
    span::Span,
-   parse_error::ParseError,
+   parse_error::{
+      ParseError,
+      InstructionError,
+   }
 };
 
 mod formatter;
 mod iterator;
 mod ident;
 
+use ident::{Ident, ident_match};
 
 // Tokenizer states.
 #[derive(Debug)]
@@ -21,6 +25,10 @@ pub enum TokenizerState {
    /// call those tokens Defered. Tokenizer calling code can split/transform
    /// Defered tokens into any other tokens if necessary.
    ExpectDefered,
+
+   /// TODO: Tokenizer switches to this state, when instruction start with open
+   /// parenthesis has been tokenized, i.e. "@include(", "@if(", etc.
+   // ExpectInstructionClose,
 
    /// This state is active when Tokenizer has got into unrecoverable
    /// tokenization error. This can happen due to various reasons, like, bug in
@@ -633,11 +641,29 @@ impl Tokenizer {
       let pos_max = src.len();
       let line_start = self.line;
 
-      // TODO: here we should iterate through each character and change states
-      // for Tokenizer. No matter how tokenization goes while iterating, there
-      // always will be some chars that are left unmatched, since in loop we
-      // can not know what is the expected token type unless all the necessary
-      // data is available.
+      let mut line = line_start;
+      let mut pos = pos_start;
+      while pos < pos_max {
+         match src[pos] {
+            0x10 /* newline */ => {
+               // In a way we do not care if there is carriage return or not,
+               // since we just need to count lines. Well... if there are some
+               // problems iwth file and some lines are ended with "\r\n" some
+               // with "\n", we can not detect it. But should we?
+               line += 1;
+            }
+            0x40 /* @ */ => {
+               return self.instruction_tokenize(pos, pos_start, pos_max, line, line_start);
+            }
+            _ch => {
+               #[cfg(feature = "dbg_tokenizer_verbose")]{
+                  println!("non-special char pos: {}, char: 0x{:02X}, do nothing", pos, _ch);
+               }
+            }
+         }
+
+         pos += 1;
+      }
 
       //
       // Code below deals with correct leftover handling. It either returns
@@ -762,6 +788,545 @@ impl Tokenizer {
 
 
 
+   // This function is intended to parse @instructions. Param line_at at this point
+   // is a line number for @ symbol, while line_start is a line number where
+   // deref token might be starting. It is possible that line_at == line_start.
+   #[inline(always)]
+   fn instruction_tokenize(&mut self,
+      pos_at: usize, pos_start: usize, pos_max: usize, line_at: usize, line_start: usize
+   )
+      -> Option<Token>
+   {
+      let src = &self.region[self.index];
+      let inf = pos_max + 1; // virtual infinity
+
+      // This is just a guard for possible development bugs to be caught.
+      #[cfg(feature = "tokenizer_integrity_guard")] {
+         if src[pos_at] != 0x40 {
+            match self.fail_result_option_token(
+               Token::Fatal(ParseError::InternalError)
+            ) {
+               Ok(tok) => {
+                  return tok;
+               }
+               Err(tok) => {
+                  return Some(tok)
+               }
+            }
+         }
+      }
+
+      // Since pos was pointing to @ symbol when this function is called. Move
+      // position one unit forward.
+      let mut pos = pos_at + 1;
+      let mut line = line_at;
+
+      let mut pos_first_char = inf;
+      let mut pos_last_char = inf;
+      let mut pos_close_paren = inf;
+      let mut pos_open_paren = inf;
+      let mut pos_first_bad_char = inf;
+      let mut pos_last_bad_char = inf;
+      // whitespace before any meaningful character
+      let mut pos_pre_whitespace_start = inf;
+      let mut pos_pre_whitespace_end = inf;
+      // whitespace after any meaningful character
+      let mut pos_post_whitespace_start = inf;
+      let mut pos_post_whitespace_end = inf;
+
+      // Normally parenthesis is at the same line where @ is. In case when open
+      // parenthesis is not found, pos_open_pare will be infinity.
+      let mut line_open_paren = line_at;
+
+      let mut pos_last_linestart = pos_start;
+
+      // At first we try to match all possible characters as instruction name.
+      // Yes, this is slower than targeting to matching exact instruction
+      // names, but this gives us ability to detect mistyped instruction names.
+      // For example, user wrote @niclude(filename) instead of @include(filename),
+      // If we match all characters, we can program some logic to decide to
+      // print warning with suggestion, that maybe there is an error.
+      //
+      // What we will not tolerate though is space after @ symbol and error
+      // in instruction name. While it could be nice to detect errors and
+      // output suggestions in case of phrase "@ niclude (..", it is just
+      // too much; being so tolerant most probably would introduce too many
+      // false positives, since it is possible to have an @ symbol for other
+      // use cases. Though we could warn, that @ symbol has to be escaped as
+      // @@.
+      while pos < pos_max {
+         match src[pos] {
+            0x0A /* newline */ | 0x20 /* space */ | 0x09 /* tab */ => {
+               if pos_pre_whitespace_start == inf {
+                  pos_pre_whitespace_start = pos;
+               }
+
+               // While there are no characters matched, consider this char
+               // to belong to pre-whitespace token.
+               if pos_first_char == inf {
+                  pos_pre_whitespace_end = pos;
+               }
+               else {
+                  if pos_post_whitespace_start == inf {
+                     pos_post_whitespace_start = pos;
+                  }
+
+                  pos_post_whitespace_end = pos;
+               }
+
+               // Only newline characters increase line number, but we want to
+               // reuse code for whitespace calculations.
+               if src[pos] == 0x0A {
+                  line += 1;
+                  // line starts after this character/byte.
+                  pos_last_linestart = pos + 1;
+               }
+            }
+
+            // This is generally the case we are aiming for. Instruction and
+            // open parenthesis.
+            0x28 /* ( */ => {
+               pos_open_paren = pos;
+               line_open_paren = line;
+
+               if pos_open_paren < pos_close_paren {
+                  return self.instruction_tokenize_correct_paren(pos_at,
+                     pos_start, pos_max, inf, pos_first_char, pos_last_char,
+                     pos_close_paren, pos_open_paren, pos_first_bad_char,
+                     pos_last_bad_char, line_at, line_start, line_open_paren,
+                     pos_last_linestart
+                  )
+               }
+               else {
+                  return self.instruction_tokenize_bad_paren(pos_at, pos_start, pos_max, inf,
+                     pos_first_char, pos_last_char, pos_close_paren, pos_open_paren,
+                     pos_first_bad_char, pos_last_bad_char
+                  )
+               }
+            }
+
+            0x29 /* ) */ => {
+               pos_close_paren = pos;
+            }
+
+            0x41..=0x5A /* A-Z */ |
+            0x61..=0x7A /* a-z */ => {
+               if pos_first_char == inf {
+                  #[cfg(feature = "dbg_tokenizer_verbose")]{
+                     println!("got first char at: {}", pos);
+                  }
+                  pos_first_char = pos;
+               }
+
+               pos_last_char = pos;
+            }
+
+            // Template instructions can be composed only of ascii characters,
+            // if there are any other characters, this means that it is not a
+            // valid instruction. Here we have various paths of possible action:
+            // 1) set tokenizer in failed state, and forbid characters
+            //    completeley. This is not flexible.
+            // 2) buffer some warnings regarding situation and return all contents
+            //    as defered token, since it is definiteley not an instruction.
+            //    This is flexible, but gives up possibly too early.
+            // 3) buffer some warnings and continue trying to match instruction.
+            //    This is flexible, but harder to implement, since we must
+            //    decide when to give up. This is the most friendly action path
+            //    from users perspective.
+            //
+            // We will try to walk path 3.
+            chr => {
+               println!("bad char? 0x{:02X}, line_open_paren: {}", chr, line_open_paren);
+               if pos_first_bad_char == inf {
+                  pos_first_bad_char = pos;
+               }
+
+               pos_last_bad_char = pos;
+            }
+         }
+
+         pos += 1;
+      }
+
+      // If instruction was correctly written, Tokenizer should not be here, but
+      // in case if it is, give state data to instruction_tokenize_unfinished
+      // function to do deeper analysis and output useful tokens for error
+      // messages.
+      self.instruction_tokenize_unfinished(pos_at, pos_start, pos_max, inf,
+         pos_first_char, pos_last_char, pos_close_paren, pos_open_paren,
+         pos_first_bad_char, pos_last_bad_char, pos_pre_whitespace_start,
+         pos_pre_whitespace_end, pos_post_whitespace_start,
+         pos_post_whitespace_end
+      )
+   }
+
+
+
+   // This function is intended to be called only from instruction_tokenize
+   // when instruction was not matched and enough characters were not collected
+   // to do meaningful analysis. We use separate function so that code length
+   // per function is reasonable (not too long).
+   // This call should happen if:
+   // 1) user has forgotten to write open parenthesis, thus whole template
+   //    source is scanned.
+   // 2) user has started instruction at the end of a file, but did not finish
+   //    it completeley, for example template ends with "@inclu" and nothing
+   //    follows.
+   #[inline(always)]
+   #[allow(unused_variables)]
+   fn instruction_tokenize_unfinished(&mut self,
+      pos_at: usize, pos_start: usize, pos_max: usize, inf: usize,
+      pos_first_char: usize, pos_last_char: usize, pos_close_paren: usize,
+      pos_open_paren: usize, pos_first_bad_char: usize,
+      pos_last_bad_char: usize, pos_pre_whitespace_start: usize,
+      pos_pre_whitespace_end: usize, pos_post_whitespace_start: usize,
+      pos_post_whitespace_end: usize
+   ) -> Option<Token>{
+
+      // TODO: insert warning tokens with user friendly messages and suggestions
+      // into tokenbuf.
+
+      self.return_tokenized(Token::Real(TokenBody::Defered(Span {
+         index: self.index, line: self.line, pos_line: self.pos_line,
+         pos_region: self.pos_region, pos_zero: self.pos_zero,
+         length: pos_max - pos_start
+      })))
+   }
+
+
+
+   // This function is intended to handle instruction parsing phase, where
+   // parenthesis are in wrong order. There could be various reasons for this
+   // thus analysis are not easy.
+   #[inline(always)]
+   #[allow(unused_variables)]
+   fn instruction_tokenize_bad_paren(&mut self,
+      pos_at: usize, pos_start: usize, pos_max: usize, inf: usize,
+      pos_first_char: usize, pos_last_char: usize, pos_close_paren: usize,
+      pos_open_paren: usize, pos_first_bad_char: usize,
+      pos_last_bad_char: usize
+   ) -> Option<Token>{
+      // TODO: give friendlier error notifications in this case. For now i must
+      // move on with higher-priority tasks and leave this for later.
+
+      // In a way related to DD-2023-07-07-01, we return UnespacedAt. We do not
+      // fail, due to DD-2023-07-09-01.
+
+      // TODO: if open paren is after close paren, then something
+      // is wrong with parenthesis, handle that case better. I.e. analyze if
+      // atleast instruction name is correct, parenthesis positioning, maybe can
+      // even give an advice how to rearange parenthesis, or where to place
+      // some.
+
+      if let Err(token) = self.tokenbuf_push(Token::Error(
+         ParseError::InstructionError(InstructionError {
+            pos_at: pos_at
+         })
+      )){
+         return Some(token);
+      }
+
+      self.return_tokenized(Token::Real(TokenBody::UnescapedAt(Span {
+         index: self.index, length: 1, pos_region: self.pos_region,
+         pos_line: self.pos_line, pos_zero: self.pos_zero, line: self.line
+      })))
+   }
+
+
+
+   // This case is called, when possible instruction is matched, thus we have
+   // something like "@include(" or "@include   (", "@nonexistentinstruction("
+   // but atleast is has a pattern "@..(", so we can try to recognize if it is
+   // correct instruction, or instruction with error, or forgotten escape.
+   #[inline(always)]
+   #[allow(unused_variables)]
+   fn instruction_tokenize_correct_paren(&mut self,
+      pos_at: usize, pos_start: usize, pos_max: usize, inf: usize,
+      pos_first_char: usize, pos_last_char: usize, pos_close_paren: usize,
+      pos_open_paren: usize, pos_first_bad_char: usize,
+      pos_last_bad_char: usize, line_at: usize, line_start: usize,
+      line_open_paren: usize, pos_last_linestart: usize
+   ) -> Option<Token>{
+      use Ident as I;
+
+      #[cfg(not(feature = "unguarded_tokenizer_integrity"))] {
+         if pos_last_char < pos_first_char {
+            return Some(self.fail_token(Token::Fatal(ParseError::InstructionError(
+               InstructionError {
+                  pos_at: pos_at,
+               }
+            ))));
+         }
+
+         if pos_first_char <= pos_at {
+            return Some(self.fail_token(Token::Fatal(ParseError::InstructionError(
+               InstructionError {
+                  pos_at: pos_at,
+               }
+            ))));
+         }
+      }
+
+      let src = &self.region[self.index];
+      #[cfg(feature = "dbg_tokenizer_verbose")]{
+         println!("got open ( at pos_at: {}", pos_at);
+      }
+
+      if (pos_at + 1) == pos_first_char {
+         match ident_match(src, pos_first_char, pos_last_char) {
+            I::Include(ident_pos_start, ident_pos_end) => {
+               #[cfg(feature = "dbg_tokenizer_verbose")]{
+                  println!("got @include {}, {}", ident_pos_start, ident_pos_end);
+               }
+
+               // If pos_at is somewhere further than Tokenizers pos_start, this
+               // means that there is a defered token that must be returned before
+               // instrution token is. This behavior is necessary so that in case
+               // if instruction is not matched, everything is returned as defered
+               // token. Such behavior us sueful in cases when there is unescaped
+               // @ symbol.
+               if pos_at > pos_start {
+                  // In this case buffer @include and coupled whitespace,
+                  // parenthesis and return defered token instead.
+                  // Buffer all tokens that were matched regarding this instruction.
+                  self.instruction_tokenize_correct_paren_defered(pos_at, pos_start,
+                     pos_open_paren, ident_pos_end, line_at, line_start,
+                     line_open_paren, pos_last_linestart
+                  )
+               }
+               else {
+                  // In this case buffer whitespace after @include and parenthesis,
+                  // but return @include token right away.
+                  self.instruction_tokenize_correct_paren_now(pos_at, pos_start,
+                     pos_open_paren, ident_pos_end, line_at, line_start,
+                     line_open_paren, pos_last_linestart
+                  )
+               }
+            }
+            I::None => {
+               None
+            }
+         }
+      }
+      else {
+         // Being here means, that there are some spaces between instruciton and
+         // at symbol. We do not allow such use cases, but what we can do is,
+         // inform uset about such cases when we have detected that following
+         // word is correct instruction.
+
+         self.instruction_tokenize_whitespace_before_instruction(pos_at,
+            pos_start, pos_max, inf, pos_first_char, pos_last_char,
+            pos_close_paren, pos_open_paren, pos_first_bad_char,
+            pos_last_bad_char, line_at, line_start, line_open_paren,
+            pos_last_linestart
+         )
+      }
+   }
+
+
+
+   // Function that does not return @include or any other instruction token
+   // coupled with parenthesis right away, because there is Defered token
+   // that has to be returned before. This is just to split code in more
+   // manageable chunks.
+   #[inline(always)]
+   fn instruction_tokenize_correct_paren_defered(&mut self,
+      pos_at: usize, pos_start: usize, pos_open_paren: usize,
+      ident_pos_end: usize, line_at: usize, line_start: usize,
+      line_open_paren: usize, pos_last_linestart: usize
+   )
+      -> Option<Token>
+   {
+      #[cfg(not(feature = "unguarded_tokenizer_integrity"))] {
+         if line_at != line_start {
+            return Some(self.fail_token(Token::Fatal(
+               ParseError::InstructionError(InstructionError {
+                  pos_at: pos_at,
+               }
+            ))));
+         }
+
+         // It should be that this function is called with Tokenizer position
+         // at location where defered token is.
+         if pos_start != self.pos_region {
+            return Some(self.fail_token(Token::Fatal(
+               ParseError::InstructionError(InstructionError {
+                  pos_at: pos_at,
+               }
+            ))));
+         }
+      }
+
+      // Since we need to calculate pos_zero, pos_line we need to know
+      // how much bytes shall be returned by defered token.
+      let len_defered = pos_at - pos_start;
+      let mut pos_next_span = pos_start + len_defered;
+      let len_ident = ident_pos_end - pos_at + 1;
+      let mut len_to_span = len_defered;
+
+      if let Err(token) = self.tokenbuf_push(Token::Real(TokenBody::Include(
+         Span {
+            index: self.index,
+            pos_region: pos_at,
+            pos_zero: self.pos_zero + len_to_span,
+            pos_line: self.pos_line + len_to_span,
+            line: line_at,
+            length: len_ident,
+         }
+      ))){
+         return Some(token);
+      }
+
+      pos_next_span += len_ident;
+      len_to_span += len_ident;
+
+      let len_whitespace = pos_open_paren - ident_pos_end - 1;
+      if len_whitespace > 0 {
+         if let Err(token) = self.tokenbuf_push(Token::Real(
+            TokenBody::WhiteSpace(Span {
+               index: self.index,
+               pos_region: pos_next_span,
+               pos_zero: self.pos_zero + len_to_span,
+               pos_line: self.pos_line + len_to_span,
+               line: line_at, // TODO: is this correct?
+               length: len_whitespace,
+            })
+         )){
+            return Some(token);
+         }
+
+         pos_next_span += len_whitespace;
+         len_to_span += len_whitespace;
+      }
+
+      let pos_line = pos_open_paren - pos_last_linestart;
+      // When instruction is matched, we know that there is open parenthesis available.
+      if let Err(token) = self.tokenbuf_push(Token::Real(
+         TokenBody::OpenParen(Span {
+            index: self.index,
+            pos_region: pos_next_span,
+            pos_zero: self.pos_zero + len_to_span,
+            pos_line: pos_line,
+            line: line_open_paren,
+            length: 1
+         })
+      )){
+         return Some(token);
+      }
+
+      // After tokens shall be consumed, further tokenization has to be
+      // in state ExpectDefered.
+
+      // At this point parenthesis have been already been parsed and
+      // buffered. By default Tokenizer does not know the context of
+      // these parenthesis, thus it swithces to default mode. The
+      // calling code can change mode as necessary.
+      // For example, @include instruction would require to parse
+      // contents as file path, @if would require to parse code as
+      // conditional, etc. At some instances maybe it is even
+      // forbidden to parse matched instruction in any special way.
+      self.state = TokenizerState::ExpectDefered;
+
+      // Return defered token and allow further calls to next to consume
+      // token buffer.
+      self.return_tokenized(Token::Real(TokenBody::Defered(Span {
+         index: self.index,
+         pos_region: pos_start,
+         pos_zero: self.pos_zero,
+         pos_line: self.pos_line,
+         line: line_start,
+         length: len_defered
+      })))
+   }
+
+
+
+   // Function that returns @include or any other instruction token coupled with
+   // parenthesis right away. This is just to split code in more manageable
+   // chunks.
+   #[inline(always)]
+   fn instruction_tokenize_correct_paren_now(&mut self,
+      pos_at: usize, pos_start: usize, pos_open_paren: usize,
+      ident_pos_end: usize, line_at: usize, line_start: usize,
+      line_open_paren: usize, pos_last_linestart: usize
+   )
+      -> Option<Token>
+   {
+      #[cfg(feature = "dbg_tokenizer_verbose")]{
+         println!("Tokenize paren now:");
+      }
+
+      #[cfg(not(feature = "unguarded_tokenizer_integrity"))] {
+         if line_at != line_start {
+            return Some(self.fail_token(Token::Fatal(
+               ParseError::InstructionError(InstructionError {
+                  pos_at: pos_at,
+               }
+            ))));
+         }
+      }
+
+      let len_instruction = ident_pos_end - pos_at + 1;
+      let len_whitespace = pos_open_paren - ident_pos_end - 1;
+
+      // Normally there should be no whitespaces, this is a slow code path and
+      // it is executed only if user has bad template.
+      if let Some(error_token) = self.whitespace_into_tokenbuf(self.index,
+          ident_pos_end + 1, len_whitespace, line_at, line_open_paren
+      ) {
+         return Some(error_token);
+      }
+
+      let pos_line = pos_open_paren - pos_last_linestart;
+      // When instruction is matched, we know that there is open
+      // parenthesis available.
+      if let Err(token) = self.tokenbuf_push(Token::Real(TokenBody::OpenParen(
+         Span {
+            index: self.index,
+            pos_region: pos_open_paren,
+            pos_zero: self.pos_zero + len_instruction + len_whitespace,
+            pos_line: pos_line,
+            line: line_open_paren,
+            length: 1,
+         }
+      ))){
+         return Some(token);
+      }
+
+      self.return_tokenized(Token::Real(TokenBody::Include(Span {
+         index: self.index,
+         pos_region: pos_start,
+         pos_zero: self.pos_zero,
+         pos_line: self.pos_line,
+         line: line_at,
+         length: len_instruction
+      })))
+   }
+
+
+
+   #[inline(always)]
+   fn instruction_tokenize_whitespace_before_instruction(&mut self,
+      _pos_at: usize, _pos_start: usize, _pos_max: usize, _inf: usize,
+      _pos_first_char: usize, _pos_last_char: usize, _pos_close_paren: usize,
+      _pos_open_paren: usize, _pos_first_bad_char: usize,
+      _pos_last_bad_char: usize, _line_at: usize, _line_start: usize,
+      _line_open_paren: usize, _pos_last_linestart: usize
+   )
+      -> Option<Token>
+   {
+      // TODO: here we should match on possible identifier and return better
+      // error/warning tokens; for now we give no extra information.
+
+      // Based on DD-2023-07-07-01 return UnespacedAt.
+
+      self.return_tokenized(Token::Real(TokenBody::UnescapedAt(Span {
+         index: self.index, length: 1, pos_region: self.pos_region,
+         pos_line: self.pos_line, pos_zero: self.pos_zero, line: self.line
+      })))
+   }
+
+
    // Since every time when we return token, we must update Tokenizer positions,
    // it is better to have a function that does that for us, so that we do not
    // forget to update some fields.
@@ -772,6 +1337,10 @@ impl Tokenizer {
    // that seems like an unnecessary code complexity.
    #[inline(always)]
    fn return_tokenized(&mut self, tok: Token) -> Option<Token> {
+      #[cfg(feature = "dbg_tokenizer_verbose")]{
+         println!("INFO(Tokenizer): return_tokenized: {:?}", tok);
+      }
+
       // Only tokens that have Span do update Tokenizers current postion
       // variable values.
       // TODO: we could implement tok.span_borrow that works more efficiently
@@ -988,13 +1557,13 @@ impl Tokenizer {
 // # Arguments
 //
 // * `list` - What tokens are expected to be returned from current Tokenizer.
-//       This is slice, because more complex testing requires us to test only 
+//       This is slice, because more complex testing requires us to test only
 //       subset of given list at a time.
 //
-// * `unbuffered` - For some tests we do not want to allow Tokenizer to tokenize 
+// * `unbuffered` - For some tests we do not want to allow Tokenizer to tokenize
 //       input string, but only return pre-prepared Tokens from tokenbuf. Thus
 //       we set this to true, when Tokenizer is allowed to return as much tokens
-//       as it wants. Set this to false, when Tokenizer is allowed to only 
+//       as it wants. Set this to false, when Tokenizer is allowed to only
 //       return tokens from tokenbuf.
 //
 // # Return
@@ -1003,7 +1572,12 @@ impl Tokenizer {
 //
 // * Err((expected token, returned token)) - this tuple then can be used to
 //       understand what went wrong.
+// # TODO
 //
+//   Should rewrite so that this function returns index for returned token as
+//   well, because when more than expected tokens are returned it is hard to
+//   understand where the error is, since expect None, got Token does not help.
+//   Index would allow us to see, how many tokens matched.
 #[cfg(all(test, not(feature = "tokenlist_match_or_fail_print_only")))]
 fn tokenlist_match_or_fail(t: &mut Tokenizer, list: &[Token], allow_unbuffered: bool)
    -> Result<(), (Option<Token>, Option<Token>)>
@@ -1094,6 +1668,9 @@ mod test_iterator;
 
 #[cfg(test)]
 mod test_ident;
+
+#[cfg(test)]
+mod test_instruction;
 
 
 

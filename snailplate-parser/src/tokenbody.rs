@@ -32,9 +32,14 @@ pub enum TokenBody {
    /// This matches tag closes, like "</div>" or "</>" or "/>" if it follows
    /// TagOpenStart.
    TagClose(Span),
-   
+
    // This is @@, while we know that it's len is always 2, reuse same structure.
    EscapedAt(Span),
+
+   // Tis is @ symbol that is alone before whitespace or within unmatched
+   // instruction. This could be for example an erroneous email address or
+   // something similar.
+   UnescapedAt(Span),
 
    /// This is a token that envelops span whose parsing is defered for later;
    /// This tag is used at first parsing stages, when there are elements, that
@@ -81,6 +86,7 @@ impl TokenBody {
          | Tb::TagCloseStart(span) 
          | Tb::TagClose(span) 
          | Tb::EscapedAt(span) 
+         | Tb::UnescapedAt(span)
          | Tb::Defered(span) 
          | Tb::OpenParen(span) 
          | Tb::CloseParen(span) 
@@ -137,6 +143,8 @@ impl<'a, F: SpanFormatter> fmt::Debug for TokenBodyFormatWrapper<'a, F> {
             => (Some("TagClose("), Some(")")),
          Tb::EscapedAt(..) 
             => (Some("EscapedAt("), Some(")")),
+         Tb::UnescapedAt(..)
+            => (Some("UnescapedAt("), Some(")")),
          Tb::Defered(..) 
             => (Some("Defered("), Some(")")),
          Tb::OpenParen(..) 

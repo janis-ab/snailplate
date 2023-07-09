@@ -16,6 +16,14 @@ dbg_tokenbuf_verbose = []
 # This is intended for debuging, when we want to see some output from Tokenizer.
 dbg_tokenizer_verbose = []
 
+# This is intended to write tests, that shall fail at the moment, but will pass
+# in the future. For example, some tricky tokenization/parsing cases that i do
+# not want to deal with at the moment. I.e. "@if( x == ')trick' )". At this
+# point in time, Tokenizer will stop at first open parenthesis. But for such
+# cases i will write some tests not to forget them, but implement the feature
+# some time in future.
+future_passing_tests = []
+
 # By default library compiles in various value checks for unexpected cases, such
 # as bad positions, sizes for tokens, etc. It is allowed to remove those guards
 # to increase tokenization speed at the cost of integrity safeties.
