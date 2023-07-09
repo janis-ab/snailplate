@@ -4,7 +4,11 @@ use crate::{
    token::Token,
    tokenbody::TokenBody,
    span::Span,
-   parse_error::ParseError,
+   parse_error::{
+      ParseError,
+      InternalError,
+      Component,
+   },
 };
 
 use super::tokenlist_match_or_fail;
@@ -1009,7 +1013,10 @@ fn test_whitespace_into_tokenbuf_12(){
          (" ", 0, 0, 3),
       ].to_vec(),
       [
-         Token::Fatal(ParseError::InternalError),
+         Token::Fatal(ParseError::InternalError(InternalError {
+            component: Component::Tokenizer,
+            line: 0,
+         })),
       ].to_vec()
    );
 }

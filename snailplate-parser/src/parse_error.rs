@@ -1,3 +1,8 @@
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum Component {
+   Tokenizer,
+   TokenBuf,
+}
 
 
 
@@ -6,6 +11,14 @@ pub struct InstructionError {
    pub pos_at: usize
 
    // TODO: add more fields
+}
+
+
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct InternalError {
+   pub component: Component,
+   pub line: u32,
 }
 
 
@@ -20,7 +33,7 @@ pub enum ParseError {
    /// This error is returned when there is some bug in code. Parser/tokenizer
    /// or any other component has reached a state that is not allowed. In such
    /// a case, it should be investigated and fixes should be applied to fix it.
-   InternalError,
+   InternalError(InternalError),
 
    InstructionError(InstructionError),
 

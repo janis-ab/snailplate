@@ -9,6 +9,20 @@ reasoning and decission made.
 
 
 <details>
+<summary>DD-2023-07-09-02: Code component and location into InternalError</summary>
+When Tokenizer fails with InternalError, it is hard to find what the cause is
+and from where the error is even emitted. So i've decided that it is necessary
+to extend InternalError with extra arguments, that contain Component and 
+source file line.
+
+Using this we could see if error happened in Tokenizer, TokenBuf or any other
+component. Then line number would allow us to search for relevant code, since
+we know which files contain which component code.
+</details>
+
+
+
+<details>
 <summary>DD-2023-07-09-01: Error handling within template sources</summary>
 When there are some errors in template source that are related to instruction
 parsing, for example "@include)(", wrong parenthesis, Tokenizer should continue

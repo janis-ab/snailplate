@@ -72,7 +72,7 @@ impl Token {
                None
             }
             Pe::NoMemory => None,
-            Pe::InternalError => None,
+            Pe::InternalError(..) => None,
             Pe::None => None,
             Pe::NoInput => None,
          }
@@ -93,48 +93,48 @@ impl<'a, F: SpanFormatter> std::fmt::Debug for TokenFormatWrapper<'a, F> {
       use Token as T;
       use ParseError as Pe;
 
-      let (start, end, body) = match self.0 {
-         T::Real(body) => (Some("Real("), Some(")"), Some(body)),
-         T::Phantom(body) => (Some("Phantom("), Some(")"), Some(body)),
+      let (start, mid, end, body) = match self.0 {
+         T::Real(body) => (Some("Real("), None, Some(")"), Some(body)),
+         T::Phantom(body) => (Some("Phantom("), None, Some(")"), Some(body)),
          T::Fatal(parse_error) => match parse_error {
             Pe::NoMemory => {
-               (Some("Fatal(NoMemory("), Some("))"), None)
+               (Some("Fatal(NoMemory("), None, Some("))"), None)
             }
-            Pe::InternalError => {
-               (Some("Fatal(InternalError("), Some("))"), None)
+            Pe::InternalError(ie) => {
+               (Some("Fatal(InternalError("), Some(format!("{:?}", ie)), Some("))"), None)
             }
             Pe::None => {
-               (Some("Fatal(None("), Some("))"), None)
+               (Some("Fatal(None("), None, Some("))"), None)
             }
             Pe::NoInput => {
-               (Some("Fatal(NoInput("), Some("))"), None)
+               (Some("Fatal(NoInput("), None, Some("))"), None)
             }
-            Pe::InstructionError(..) => {
+            Pe::InstructionError(ie) => {
                // TODO: Update whole match return Tuple in such a way, so that
                // we can print InstructionError data as well.
-               (Some("Fatal(InstructionError(.."), Some("))"), None)
+               (Some("Fatal(InstructionError(.."), Some(format!("{:?}", ie)), Some("))"), None)
             }
          }
          T::Error(parse_error) => match parse_error {
             Pe::NoMemory => {
-               (Some("Error(NoMemory("), Some("))"), None)
+               (Some("Error(NoMemory("), None, Some("))"), None)
             }
-            Pe::InternalError => {
-               (Some("Error(InternalError("), Some("))"), None)
+            Pe::InternalError(ie) => {
+               (Some("Error(InternalError("), Some(format!("{:?}", ie)), Some("))"), None)
             }
             Pe::None => {
-               (Some("Error(None("), Some("))"), None)
+               (Some("Error(None("), None, Some("))"), None)
             }
             Pe::NoInput => {
-               (Some("Error(NoInput("), Some("))"), None)
+               (Some("Error(NoInput("), None, Some("))"), None)
             }
-            Pe::InstructionError(..) => {
+            Pe::InstructionError(ie) => {
                // TODO: Update whole match return Tuple in such a way, so that
                // we can print InstructionError data as well.
-               (Some("Fatal(InstructionError(.."), Some("))"), None)
+               (Some("Fatal(InstructionError("), Some(format!("{:?}", ie)), Some("))"), None)
             }
          }
-         T::StateChange => (Some("StateChange"), None, None),
+         T::StateChange => (Some("StateChange"), None, None, None),
       };
 
       let body = if let Some(body) = body {
@@ -147,11 +147,17 @@ impl<'a, F: SpanFormatter> std::fmt::Debug for TokenFormatWrapper<'a, F> {
             }
          }
 
+         if let Some(mid) = mid {
+            if let Err(e) = f.write_str(&mid) {
+               return Err(e);
+            }
+         }
+
          if let Some(end) = end {
             if let Err(e) = f.write_str(end) {
                return Err(e);
             }
-         }             
+         }
 
          // Being here means that start/end were formatted, and there is no
          // body, thus return Ok().

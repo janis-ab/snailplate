@@ -5,6 +5,8 @@ use crate::{
    parse_error::{
       ParseError,
       InstructionError,
+      InternalError,
+      Component,
    }
 };
 
@@ -249,7 +251,10 @@ impl TokenBuf {
          self.num_tokens = 0;
          self.buf.clear();
 
-         return Err(Token::Fatal(ParseError::InternalError));
+         return Err(Token::Fatal(ParseError::InternalError(InternalError {
+            component: Component::TokenBuf,
+            line: line!(),
+         })));
       }
 
       let idx_item = num_in_buf - num_tokens;
@@ -280,7 +285,10 @@ impl TokenBuf {
          self.num_tokens = 0;
          self.buf.clear();
 
-         return Err(Token::Fatal(ParseError::InternalError));
+         return Err(Token::Fatal(ParseError::InternalError(InternalError {
+            component: Component::TokenBuf,
+            line: line!(),
+         })));
       };
 
       #[cfg(feature = "dbg_tokenbuf_verbose")] {
@@ -396,7 +404,10 @@ fn tokenizer_line_tokenize(tokenbuf: &mut TokenBuf, index: usize, src: &[u8],
    // TODO: In future should have better internal error location, so we can find
    // error sooner.
 
-   Some(Token::Fatal(ParseError::InternalError))
+   Some(Token::Fatal(ParseError::InternalError(InternalError {
+      component: Component::Tokenizer,
+      line: line!(),
+   })))
 }
 
 
@@ -1367,18 +1378,26 @@ impl Tokenizer {
                // get into infinite loop, which we do not want. This guards
                // against that iif calling function does not change
                // parse_error_prev arbitrarily.
-               if let ParseError::InternalError = self.parse_error_prev { }
+               if let ParseError::InternalError(..) = self.parse_error_prev { }
                else {
                   // We are already failing, if this fails as well, there is
                   // nothing we can do.
                   #[allow(unused_must_use)] {
                      self.tokenbuf_push(tok);
                   }
-                  self.parse_error_prev = ParseError::InternalError;
+                  self.parse_error_prev = ParseError::InternalError(
+                     InternalError {
+                        component: Component::Tokenizer,
+                        line: line!(),
+                     }
+                  );
                }
 
                return Some(self.fail_token(Token::Fatal(
-                  ParseError::InternalError
+                  ParseError::InternalError(InternalError {
+                     component: Component::Tokenizer,
+                     line: line!(),
+                  })
                )));
             }
 
@@ -1399,18 +1418,26 @@ impl Tokenizer {
                   println!("    Token::{:?}", tok);
                }
 
-               if let ParseError::InternalError = self.parse_error_prev { }
+               if let ParseError::InternalError(..) = self.parse_error_prev { }
                else {
                   // We are already failing, if this fails as well, there is
                   // nothing we can do.
                   #[allow(unused_must_use)] {
                      self.tokenbuf_push(tok);
                   }
-                  self.parse_error_prev = ParseError::InternalError;
+                  self.parse_error_prev = ParseError::InternalError(
+                     InternalError {
+                        component: Component::Tokenizer,
+                        line: line!(),
+                     }
+                  );
                }
 
                return Some(self.fail_token(Token::Fatal(
-                  ParseError::InternalError
+                  ParseError::InternalError(InternalError {
+                     component: Component::Tokenizer,
+                     line: line!(),
+                  })
                )));
             }
          }
@@ -1440,18 +1467,26 @@ impl Tokenizer {
          // interna state.
          if self.pos_region > self.pos_max {
             self.pos_region = self.pos_max;
-            if let ParseError::InternalError = self.parse_error_prev { }
+            if let ParseError::InternalError(..) = self.parse_error_prev { }
             else {
                // We are already failing, if this fails as well, there is
                // nothing we can do.
                #[allow(unused_must_use)] {
                   self.tokenbuf_push(tok);
                }
-               self.parse_error_prev = ParseError::InternalError;
+               self.parse_error_prev = ParseError::InternalError(
+                  InternalError {
+                     component: Component::Tokenizer,
+                     line: line!(),
+                  }
+               );
             }
 
             return Some(self.fail_token(Token::Fatal(
-               ParseError::InternalError
+               ParseError::InternalError(InternalError {
+                  component: Component::Tokenizer,
+                  line: line!(),
+               })
             )));
          }
 
@@ -1473,18 +1508,26 @@ impl Tokenizer {
 
                #[cfg(not(feature = "unguarded_tokenizer_integrity"))] {
                   if self.index != snap.index {
-                     if let ParseError::InternalError = self.parse_error_prev { }
+                     if let ParseError::InternalError(..) = self.parse_error_prev { }
                      else {
                         // We are already failing, if this fails as well, there
                         // is nothing we can do.
                         #[allow(unused_must_use)] {
                            self.tokenbuf_push(tok);
                         }
-                        self.parse_error_prev = ParseError::InternalError;
+                        self.parse_error_prev = ParseError::InternalError(
+                           InternalError {
+                              component: Component::Tokenizer,
+                              line: line!(),
+                           }
+                        );
                      }
 
                      return Some(self.fail_token(Token::Fatal(
-                        ParseError::InternalError
+                        ParseError::InternalError(InternalError {
+                           component: Component::Tokenizer,
+                           line: line!(),
+                        })
                      )));
                   }
                }
@@ -1492,18 +1535,26 @@ impl Tokenizer {
                return Some(tok);
             }
             else {
-               if let ParseError::InternalError = self.parse_error_prev { }
+               if let ParseError::InternalError(..) = self.parse_error_prev { }
                else {
                   // We are already failing, if this fails as well, there is
                   // nothing we can do.
                   #[allow(unused_must_use)] {
                      self.tokenbuf_push(tok);
                   }
-                  self.parse_error_prev = ParseError::InternalError;
+                  self.parse_error_prev = ParseError::InternalError(
+                     InternalError {
+                        component: Component::Tokenizer,
+                        line: line!(),
+                     }
+                  );
                }
 
                return Some(self.fail_token(Token::Fatal(
-                  ParseError::InternalError
+                  ParseError::InternalError(InternalError {
+                     component: Component::Tokenizer,
+                     line: line!(),
+                  })
                )));
             }
          }

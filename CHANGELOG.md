@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- More information (component enum, line number) inside InternalError struct.
 - Tokenizer ability to parse "@include(" into Token::Include, Token::OpenParen.
   Added token UnescapedAt. 6 tests for @include cases.
 - Tokenizer.parse_error_prev.
