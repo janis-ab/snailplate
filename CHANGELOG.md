@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Updated tokenlist_match_or_fail, so that now it ignores Token::StateChange.
+- New enum TokenizerState::ExpectInstructionClose.
+- Tokenizer.tokenize_instruction_args with 4 tests.
+- New enum ParseError::OpenInstruction.
 - More information (component enum, line number) inside InternalError struct.
 - Tokenizer ability to parse "@include(" into Token::Include, Token::OpenParen.
   Added token UnescapedAt. 6 tests for @include cases.

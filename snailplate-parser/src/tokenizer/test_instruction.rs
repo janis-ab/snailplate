@@ -33,6 +33,9 @@ fn tokenizer_instruction_include_test_01() {
       Token::Real(TokenBody::OpenParen(Span {
          index: 0, line: 0, pos_line: 8, pos_region: 8, pos_zero: 8, length: 1
       })),
+      Token::Error(ParseError::OpenInstruction(InstructionError {
+         pos_zero: 0,
+      })),
    ].to_vec();
 
    if let Err((expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
@@ -80,6 +83,9 @@ fn tokenizer_instruction_include_test_02() {
       Token::Real(TokenBody::OpenParen(Span {
          index: 0, line: 3, pos_line: 4, pos_region: 19, pos_zero: 19, length: 1
       })),
+      Token::Error(ParseError::OpenInstruction(InstructionError {
+         pos_zero: 0,
+      })),
    ].to_vec();
 
    if let Err((expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
@@ -111,6 +117,9 @@ fn tokenizer_instruction_include_test_03() {
       })),
       Token::Real(TokenBody::OpenParen(Span {
          index: 0, line: 0, pos_line: 11, pos_region: 11, pos_zero: 11, length: 1
+      })),
+      Token::Error(ParseError::OpenInstruction(InstructionError {
+         pos_zero: 3,
       })),
    ].to_vec();
 
@@ -190,7 +199,7 @@ fn tokenizer_instruction_include_test_06() {
          index: 0, line: 0, pos_line: 0, pos_region: 0, pos_zero: 0, length: 1
       })),
       Token::Error(ParseError::InstructionError(InstructionError {
-            pos_at: 0
+            pos_zero: 0
       })),
       Token::Real(TokenBody::Defered(Span {
          index: 0, line: 0, pos_line: 1, pos_region: 1, pos_zero: 1, length: 10
@@ -214,16 +223,16 @@ fn tokenizer_instruction_include_test_06() {
 // Everything between parenthesis is returned as Token::Defered, unless
 // different mode is used.
 //
-// cargo test -F future_passing_tests -F dbg_tokenbuf_verbose -F dbg_tokenizer_verbose tokenizer::test_instruction::tokenizer_instruction_include_test_100 -- --nocapture
+// cargo test -F dbg_tokenbuf_verbose -F dbg_tokenizer_verbose tokenizer::test_instruction::tokenizer_instruction_include_test_07 -- --nocapture
 #[test]
-#[cfg(feature = "future_passing_tests")]
-fn tokenizer_instruction_include_test_100() {
-   println!("Starging iterator test 05");
+fn tokenizer_instruction_include_test_07() {
    let mut t = Tokenizer::new();
 
    #[allow(unused_must_use)] {
       t.src_push(None, "@include()".into());
    }
+
+   // TODO: after @include, tokenizer has to go into state expect close paren
 
    let list: Vec<Token> = [
       Token::Real(TokenBody::Include(Span {
@@ -234,6 +243,146 @@ fn tokenizer_instruction_include_test_100() {
       })),
       Token::Real(TokenBody::CloseParen(Span {
          index: 0, line: 0, pos_line: 9, pos_region: 9, pos_zero: 9, length: 1
+      })),
+   ].to_vec();
+
+   if let Err((expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
+      panic!("Token mismatch. Expect: {:?} vs got: {:?}", expect, got);
+   }
+}
+
+
+
+// cargo test -F dbg_tokenbuf_verbose -F dbg_tokenizer_verbose tokenizer::test_instruction::tokenizer_instruction_include_test_08 -- --nocapture
+#[test]
+fn tokenizer_instruction_include_test_08() {
+   let mut t = Tokenizer::new();
+
+   #[allow(unused_must_use)] {
+      t.src_push(None, "@include(def(er)ed)".into());
+   }
+
+   // TODO: after @include, tokenizer has to go into state expect close paren
+
+   let list: Vec<Token> = [
+      Token::Real(TokenBody::Include(Span {
+         index: 0, line: 0, pos_line: 0, pos_region: 0, pos_zero: 0, length: 8
+      })),
+      Token::Real(TokenBody::OpenParen(Span {
+         index: 0, line: 0, pos_line: 8, pos_region: 8, pos_zero: 8, length: 1
+      })),
+      Token::Real(TokenBody::Defered(Span {
+         index: 0, line: 0, pos_line: 9, pos_region: 9, pos_zero: 9, length: 9
+      })),
+      Token::Real(TokenBody::CloseParen(Span {
+         index: 0, line: 0, pos_line: 18, pos_region: 18, pos_zero: 18, length: 1
+      })),
+   ].to_vec();
+
+   if let Err((expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
+      panic!("Token mismatch. Expect: {:?} vs got: {:?}", expect, got);
+   }
+}
+
+
+
+
+// cargo test -F dbg_tokenbuf_verbose -F dbg_tokenizer_verbose tokenizer::test_instruction::tokenizer_instruction_include_test_09 -- --nocapture
+#[test]
+fn tokenizer_instruction_include_test_09() {
+   let mut t = Tokenizer::new();
+
+   #[allow(unused_must_use)] {
+      t.src_push(None, "@include(defered)".into());
+   }
+
+   // TODO: after @include, tokenizer has to go into state expect close paren
+
+   let list: Vec<Token> = [
+      Token::Real(TokenBody::Include(Span {
+         index: 0, line: 0, pos_line: 0, pos_region: 0, pos_zero: 0, length: 8
+      })),
+      Token::Real(TokenBody::OpenParen(Span {
+         index: 0, line: 0, pos_line: 8, pos_region: 8, pos_zero: 8, length: 1
+      })),
+      Token::Real(TokenBody::Defered(Span {
+         index: 0, line: 0, pos_line: 9, pos_region: 9, pos_zero: 9, length: 7
+      })),
+      Token::Real(TokenBody::CloseParen(Span {
+         index: 0, line: 0, pos_line: 16, pos_region: 16, pos_zero: 16, length: 1
+      })),
+   ].to_vec();
+
+   if let Err((expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
+      panic!("Token mismatch. Expect: {:?} vs got: {:?}", expect, got);
+   }
+}
+
+
+
+// cargo test -F dbg_tokenbuf_verbose -F dbg_tokenizer_verbose tokenizer::test_instruction::tokenizer_instruction_include_test_10 -- --nocapture
+#[test]
+fn tokenizer_instruction_include_test_10() {
+   let mut t = Tokenizer::new();
+
+   #[allow(unused_must_use)] {
+      t.src_push(None, "@include(def\ne@red)".into());
+   }
+
+   let list: Vec<Token> = [
+      Token::Real(TokenBody::Include(Span {
+         index: 0, line: 0, pos_line: 0, pos_region: 0, pos_zero: 0, length: 8
+      })),
+      Token::Real(TokenBody::OpenParen(Span {
+         index: 0, line: 0, pos_line: 8, pos_region: 8, pos_zero: 8, length: 1
+      })),
+
+      Token::Real(TokenBody::Defered(Span {
+         index: 0, line: 0, pos_line: 9, pos_region: 9, pos_zero: 9, length: 3
+      })),
+      Token::Real(TokenBody::Newline(Span {
+         index: 0, line: 0, pos_line: 12, pos_region: 12, pos_zero: 12, length: 1
+      })),
+      Token::Real(TokenBody::Defered(Span {
+         index: 0, line: 1, pos_line: 0, pos_region: 13, pos_zero: 13, length: 5
+      })),
+
+      Token::Real(TokenBody::CloseParen(Span {
+         index: 0, line: 1, pos_line: 5, pos_region: 18, pos_zero: 18, length: 1
+      })),
+   ].to_vec();
+
+   if let Err((expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
+      panic!("Token mismatch. Expect: {:?} vs got: {:?}", expect, got);
+   }
+}
+
+
+
+// cargo test -F dbg_tokenbuf_verbose -F dbg_tokenizer_verbose tokenizer::test_instruction::tokenizer_instruction_include_test_11 -- --nocapture
+#[test]
+fn tokenizer_instruction_include_test_11() {
+   let mut t = Tokenizer::new();
+
+   #[allow(unused_must_use)] {
+      t.src_push(None, "X Y@include(xxx".into());
+   }
+
+   let list: Vec<Token> = [
+      Token::Real(TokenBody::Defered(Span {
+         index: 0, line: 0, pos_line: 0, pos_region: 0, pos_zero: 0, length: 3
+      })),
+      Token::Real(TokenBody::Include(Span {
+         index: 0, line: 0, pos_line: 3, pos_region: 3, pos_zero: 3, length: 8
+      })),
+      Token::Real(TokenBody::OpenParen(Span {
+         index: 0, line: 0, pos_line: 11, pos_region: 11, pos_zero: 11, length: 1
+      })),
+      Token::Real(TokenBody::Defered(Span {
+         index: 0, line: 0, pos_line: 12, pos_region: 12, pos_zero: 12, length: 3
+      })),
+      Token::Error(ParseError::OpenInstruction(InstructionError {
+         pos_zero: 3,
       })),
    ].to_vec();
 

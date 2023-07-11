@@ -30,7 +30,7 @@ pub enum TokenizerState {
 
    /// TODO: Tokenizer switches to this state, when instruction start with open
    /// parenthesis has been tokenized, i.e. "@include(", "@if(", etc.
-   // ExpectInstructionClose,
+   ExpectInstructionClose,
 
    /// This state is active when Tokenizer has got into unrecoverable
    /// tokenization error. This can happen due to various reasons, like, bug in
@@ -116,6 +116,7 @@ struct TokenBuf {
 }
 
 
+
 /// Tokenizer struct stores internal state for Tokenizer. Each time a new byte
 /// is read, it increases pos_*, line values, once Token is recognized, those
 /// values are copied into Span token that is wrapped with returned Token.
@@ -161,6 +162,12 @@ pub struct Tokenizer {
    /// write a tokenizer.
    tokenbuf: TokenBuf,
 
+   /// Count for open parenthesis, when instruction is being tokenized.
+   cnt_openparen: u32,
+
+   // Count for closing parenthesis, when instruction is being tokenized.
+   cnt_closeparen: u32,
+
    state_snap: Vec<StateSnap>,
 
    // Region meta is intended to be used when resolving errors, thus we can
@@ -173,6 +180,10 @@ pub struct Tokenizer {
    // If this error is InternalError, it should never be changed to anything 
    // other (less fatal).
    parse_error_prev: ParseError,
+
+   // pos_zero for previously handled instruction. At the moment the use-case 
+   // for this is to allow generating error tokens regarding instructions.
+   pos_zero_prev_instr: usize,
 }
 
 
@@ -497,9 +508,12 @@ impl Tokenizer {
          line: 0,
          tokenbuf: TokenBuf::new(),
          region: Vec::with_capacity(8),
+         cnt_openparen: 0,
+         cnt_closeparen: 0,
          region_meta: Vec::with_capacity(8),
          state_snap: Vec::with_capacity(8),
          parse_error_prev: ParseError::None,
+         pos_zero_prev_instr: 0,
       }
    }
 
@@ -1029,9 +1043,12 @@ impl Tokenizer {
       // even give an advice how to rearange parenthesis, or where to place
       // some.
 
+      let len_left = pos_start - self.pos_region;
+      let pos_zero = self.pos_zero + len_left;
+
       if let Err(token) = self.tokenbuf_push(Token::Error(
          ParseError::InstructionError(InstructionError {
-            pos_at: pos_at
+            pos_zero: pos_zero
          })
       )){
          return Some(token);
@@ -1060,11 +1077,14 @@ impl Tokenizer {
    ) -> Option<Token>{
       use Ident as I;
 
+      let len_left = pos_start - self.pos_region;
+      let pos_zero = self.pos_zero + len_left;
+
       #[cfg(not(feature = "unguarded_tokenizer_integrity"))] {
          if pos_last_char < pos_first_char {
             return Some(self.fail_token(Token::Fatal(ParseError::InstructionError(
                InstructionError {
-                  pos_at: pos_at,
+                  pos_zero: pos_zero,
                }
             ))));
          }
@@ -1072,7 +1092,7 @@ impl Tokenizer {
          if pos_first_char <= pos_at {
             return Some(self.fail_token(Token::Fatal(ParseError::InstructionError(
                InstructionError {
-                  pos_at: pos_at,
+                  pos_zero: pos_zero,
                }
             ))));
          }
@@ -1149,10 +1169,13 @@ impl Tokenizer {
       -> Option<Token>
    {
       #[cfg(not(feature = "unguarded_tokenizer_integrity"))] {
+         let len_left = pos_start - self.pos_region;
+         let pos_zero = self.pos_zero + len_left;
+
          if line_at != line_start {
             return Some(self.fail_token(Token::Fatal(
                ParseError::InstructionError(InstructionError {
-                  pos_at: pos_at,
+                  pos_zero: pos_zero,
                }
             ))));
          }
@@ -1162,7 +1185,7 @@ impl Tokenizer {
          if pos_start != self.pos_region {
             return Some(self.fail_token(Token::Fatal(
                ParseError::InstructionError(InstructionError {
-                  pos_at: pos_at,
+                  pos_zero: pos_zero,
                }
             ))));
          }
@@ -1268,10 +1291,13 @@ impl Tokenizer {
       }
 
       #[cfg(not(feature = "unguarded_tokenizer_integrity"))] {
+         let len_left = pos_start - self.pos_region;
+         let pos_zero = self.pos_zero + len_left;
+
          if line_at != line_start {
             return Some(self.fail_token(Token::Fatal(
                ParseError::InstructionError(InstructionError {
-                  pos_at: pos_at,
+                  pos_zero: pos_zero,
                }
             ))));
          }
@@ -1338,6 +1364,168 @@ impl Tokenizer {
    }
 
 
+
+   // Tokenize what's inside (), when instruction with args is being tokenized.
+   //
+   // This state in a way is similar to Defered, just that open parenthesis are
+   // being counted and when matching parenthesis are found, then Defered + 
+   // CloseParen tokens are returned.
+   #[inline(always)]
+   fn tokenize_instruction_args(&mut self) -> Option<Token> {
+      let src = &self.region[self.index];
+      let pos_max = src.len();
+
+      // TODO: check pos_line < pos_region, panic! if not, behind feature flag.
+
+      let mut pos_line_start = self.pos_region - self.pos_line;
+      let mut pos_token_start = self.pos_region;
+
+      let mut line = self.line;
+      let mut pos = self.pos_region;
+      while pos < pos_max {
+         match src[pos] {
+            0x0A /* newline */ => {
+               let pos_in_line = pos_token_start - pos_line_start;
+               let len_defered = pos - pos_token_start;
+               let len_prev_token = pos_token_start - self.pos_region;
+
+               if let Err(token) = self.tokenbuf.push(Token::Real(
+                  TokenBody::Defered(Span {
+                     index: self.index,
+                     pos_region: pos_token_start,
+                     pos_zero: self.pos_zero + len_prev_token,
+                     pos_line: pos_in_line,
+                     line: line,
+                     length: len_defered,
+                  })
+               )){
+                  return Some(token);
+               };
+
+               if let Err(token) = self.tokenbuf.push(Token::Real(
+                  TokenBody::Newline(Span {
+                     index: self.index,
+                     pos_region: pos,
+                     pos_zero: self.pos_zero + len_prev_token + len_defered,
+                     pos_line: pos_in_line + len_defered,
+                     line: line,
+                     length: 1,
+                  })
+               )){
+                  return Some(token);
+               };
+
+               // Same as in defered_tokenize.
+               line += 1;
+               pos_line_start = pos + 1;
+               pos_token_start = pos + 1;
+            }
+
+            // TODO: At the moment we ignore @ symbols, since we do not care
+            // about them. What we could do is - warn if there are unescaped @
+            // symbols? Actually we must handle @symbol escaping, since from
+            // user's prespective it would be better to have same behavior
+            // everywhere?
+
+            0x28 /* ( */ => {
+               self.cnt_openparen += 1;
+            }
+            0x29 /* ) */ => {
+               self.cnt_closeparen += 1;
+
+               if self.cnt_closeparen == self.cnt_openparen {
+                  let pos_in_line = pos_token_start - pos_line_start;
+                  let len_defered = pos - pos_token_start;
+                  let len_prev_token = pos_token_start - self.pos_region;
+
+                  self.state = TokenizerState::ExpectDefered;
+
+                  if len_defered > 0 {
+                     if let Err(token) = self.tokenbuf_push(Token::Real(TokenBody::Defered(Span {
+                        index: self.index,
+                        pos_region: pos_token_start,
+                        pos_zero: self.pos_zero + len_prev_token,
+                        pos_line: pos_in_line,
+                        line: line,
+                        length: len_defered,
+                     }))) {
+                        return Some(token);
+                     };
+
+                     if let Err(token) = self.tokenbuf_push(Token::Real(TokenBody::CloseParen(Span {
+                        index: self.index,
+                        pos_region: pos,
+                        pos_zero: self.pos_zero + len_prev_token + len_defered,
+                        pos_line: pos_in_line + len_defered,
+                        line: line,
+                        length: 1,
+                     }))){
+                        return Some(token);
+                     };
+
+                     // There is nothing that we can return, since returnable
+                     // tokens are buffered.
+                     return Some(Token::StateChange);
+                  }
+                  else {
+                     return self.return_tokenized(Token::Real(TokenBody::CloseParen(Span {
+                        index: self.index,
+                        pos_region: pos,
+                        pos_zero: self.pos_zero,
+                        pos_line: pos_in_line,
+                        line: line,
+                        length: 1,
+                     })));
+                  }
+               }
+            }
+            _ch => {
+               #[cfg(feature = "dbg_tokenizer_verbose")]{
+                  println!("non-special char pos: {}, char: 0x{:02X}, do nothing", pos, _ch);
+               }
+            }
+         }
+
+         pos += 1;
+      }
+
+      // Being here means that pos == pos_max. Code should not reach this point
+      // unless there are no matching closing parenthesis. We do not try to
+      // detect if any tokens are buffered. We just buffer more and return
+      // state-chaged token.
+
+      // There is Defered token available as well.
+      if pos_token_start < pos {
+         let pos_in_line = pos_token_start - pos_line_start;
+         let len_prev_token = pos_token_start - self.pos_region;
+
+         if let Err(token) = self.tokenbuf_push(Token::Real(TokenBody::Defered(
+            Span {
+               index: self.index,
+               pos_region: pos_token_start,
+               pos_zero: self.pos_zero + len_prev_token,
+               pos_line: pos_in_line,
+               line: line,
+               length: pos - pos_token_start,
+            }
+         ))) {
+            return Some(token);
+         }
+      }
+
+      if let Err(token) = self.tokenbuf_push(Token::Error(
+         ParseError::OpenInstruction(InstructionError {
+               pos_zero: self.pos_zero_prev_instr
+         }))) {
+         return Some(token);
+      };
+
+      self.state = TokenizerState::ExpectDefered;
+      return Some(Token::StateChange);
+   }
+
+
+
    // Since every time when we return token, we must update Tokenizer positions,
    // it is better to have a function that does that for us, so that we do not
    // forget to update some fields.
@@ -1349,7 +1537,7 @@ impl Tokenizer {
    #[inline(always)]
    fn return_tokenized(&mut self, tok: Token) -> Option<Token> {
       #[cfg(feature = "dbg_tokenizer_verbose")]{
-         println!("INFO(Tokenizer): return_tokenized: {:?}", tok);
+         println!("INFO(Tokenizer): return_tokenized(1): {:?}", tok);
       }
 
       // Only tokens that have Span do update Tokenizers current postion
@@ -1363,7 +1551,7 @@ impl Tokenizer {
          let line = span.line;
 
          #[cfg(feature = "dbg_tokenizer_verbose")]{
-            println!("INFO(Tokenizer): return_tokenized: {:?}", tok);
+            println!("INFO(Tokenizer): return_tokenized(2): {:?}", tok);
          }
 
          #[cfg(not(feature = "unguarded_tokenizer_integrity"))] {
@@ -1453,11 +1641,27 @@ impl Tokenizer {
          self.line = line;
          match tok {
             Token::Real(body)
-            | Token::Phantom(body) => {
-               if let TokenBody::Newline(..) = body {
+            | Token::Phantom(body)
+            => match body {
+               TokenBody::Newline(..) => {
                   self.line = line + 1;
                   self.pos_line = 0;
                }
+               TokenBody::Include(span) => {
+                  // switch into ExpectInstructionClose right away when instruction
+                  // with expected partenthesis is returned. This is easier to
+                  // implement, rather than switching into this state when
+                  // OpenParen is returned.
+                  // We can change this in future, if necessary.
+                  self.state = TokenizerState::ExpectInstructionClose;
+                  self.cnt_openparen = 0;
+                  self.cnt_closeparen = 0;
+                  self.pos_zero_prev_instr = span.pos_zero;
+               }
+               TokenBody::OpenParen(..) => {
+                  self.cnt_openparen += 1;
+               }
+               _ => {}
             }
             _ => { }
          }
@@ -1559,6 +1763,11 @@ impl Tokenizer {
             }
          }
       }
+      else {
+         // TODO: Actually if we are returning token that is the last one in
+         // region, we should pop the stack one region back...
+         // if self.pos_region == self.pos_max => pop-stack
+      }
 
       Some(tok)
    }
@@ -1623,6 +1832,7 @@ impl Tokenizer {
 //
 // * Err((expected token, returned token)) - this tuple then can be used to
 //       understand what went wrong.
+//
 // # TODO
 //
 //   Should rewrite so that this function returns index for returned token as
@@ -1646,6 +1856,12 @@ fn tokenlist_match_or_fail(t: &mut Tokenizer, list: &[Token], allow_unbuffered: 
       // we must error out. This must be done at iteration start.
       if idx >= idx_oob {
          return Err((None, Some(token)));
+      }
+
+      // We do not care if Tokenizer has changed state. We only care about
+      // correct return tokens.
+      if let Token::StateChange = token {
+         continue;
       }
 
       // If there are expected items, compare if they match.

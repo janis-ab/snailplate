@@ -53,6 +53,9 @@ impl Iterator for Tokenizer {
          Ts::ExpectDefered => {
             self.defered_tokenize()
          }
+         Ts::ExpectInstructionClose => {
+            self.tokenize_instruction_args()
+         }
          Ts::Failed => {
             None
          }

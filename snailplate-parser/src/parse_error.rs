@@ -8,7 +8,9 @@ pub enum Component {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct InstructionError {
-   pub pos_at: usize
+   // This is unique "global" position in token stream for @instruction token
+   // that has not been satisfied by required conditions.
+   pub pos_zero: usize
 
    // TODO: add more fields
 }
@@ -36,6 +38,10 @@ pub enum ParseError {
    InternalError(InternalError),
 
    InstructionError(InstructionError),
+
+   /// This error is returned, when instruction is opened, but not closed, i.e.
+   /// "@include(".
+   OpenInstruction(InstructionError),
 
    /// This error is returned when Iterator is built but no input was loaded
    /// for tokenizer.
