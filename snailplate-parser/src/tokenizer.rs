@@ -664,22 +664,53 @@ impl Tokenizer {
       let src = &self.region[self.index];
       let pos_start = self.pos_region;
       let pos_max = src.len();
-      let line_start = self.line;
 
-      let mut line = line_start;
+      let pos_line_start = self.pos_region - self.pos_line;
+      let pos_token_start = self.pos_region;
+
+      let line = self.line;
       let mut pos = pos_start;
       while pos < pos_max {
          match src[pos] {
-            0x10 /* newline */ => {
+            0x0A /* newline */ => {
                // In a way we do not care if there is carriage return or not,
                // since we just need to count lines. Well... if there are some
                // problems iwth file and some lines are ended with "\r\n" some
                // with "\n", we can not detect it. But should we?
-               line += 1;
+
+               let pos_in_line = pos_token_start - pos_line_start;
+               let len_defered = pos - pos_token_start;
+               let len_prev_token = pos_token_start - self.pos_region;
+
+               if let Err(token) = self.tokenbuf.push(Token::Real(
+                  TokenBody::Newline(Span {
+                     index: self.index,
+                     pos_region: pos,
+                     pos_zero: self.pos_zero + len_prev_token + len_defered,
+                     pos_line: pos_in_line + len_defered,
+                     line: line,
+                     length: 1,
+                  })
+               )){
+                  return Some(token);
+               };
+
+               return self.return_tokenized(Token::Real(TokenBody::Defered(
+                  Span {
+                     index: self.index,
+                     pos_region: pos_token_start,
+                     pos_zero: self.pos_zero + len_prev_token,
+                     pos_line: pos_in_line,
+                     line: line,
+                     length: len_defered,
+                  }
+               )));
             }
+
             0x40 /* @ */ => {
-               return self.instruction_tokenize(pos, pos_start, pos_max, line, line_start);
+               return self.instruction_tokenize(pos, pos_start, pos_max, line, line);
             }
+
             _ch => {
                #[cfg(feature = "dbg_tokenizer_verbose")]{
                   println!("non-special char pos: {}, char: 0x{:02X}, do nothing", pos, _ch);
@@ -704,7 +735,7 @@ impl Tokenizer {
             pos_region: pos_start,
             pos_zero: self.pos_zero,
             pos_line: self.pos_line,
-            line: line_start,
+            line: line,
             length: len_defered
          }));
 
