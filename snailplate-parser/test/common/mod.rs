@@ -68,11 +68,7 @@ pub trait TokenIntegrationTester {
 
 
 
-   // Function that returns path to test template source.
-   //
-   // It panics on error. This behavior is such, since it always should succeed
-   // and this style allows us to write less code.
-   fn filepath_get(filename: &str) -> String {
+   fn template_dir_get() -> String {
       let dir_root = if let Some(dir) = option_env!("CARGO_MANIFEST_DIR") {
          dir
       }
@@ -81,7 +77,20 @@ pub trait TokenIntegrationTester {
       };
 
       let mut path = dir_root.to_owned();
-      path.push_str("/test/fixture/template/");
+      path.push_str("/test/fixture/template");
+
+      path
+   }
+
+
+
+   // Function that returns path to test template source.
+   //
+   // It panics on error. This behavior is such, since it always should succeed
+   // and this style allows us to write less code.
+   fn filepath_get(filename: &str) -> String {
+      let mut path = Self::template_dir_get();
+      path.push_str("/");
       path.push_str(filename);
       path.push_str(".html");
 

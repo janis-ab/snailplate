@@ -16,6 +16,9 @@ dbg_tokenbuf_verbose = []
 # This is intended for debuging, when we want to see some output from Tokenizer.
 dbg_tokenizer_verbose = []
 
+# This is intended for debugging IncludeResolver while developing library.
+dbg_include_resolver_verbose = []
+
 # This is intended to write tests, that shall fail at the moment, but will pass
 # in the future. For example, some tricky tokenization/parsing cases that i do
 # not want to deal with at the moment. I.e. "@if( x == ')trick' )". At this
@@ -40,6 +43,12 @@ tokenlist_match_or_fail_print_only = []
 [[test]]
 name = "tokenizer_test"
 path = "test/tokenizer_test.rs"
+
+
+
+[[test]]
+name = "include_resolver_test"
+path = "test/include_resolver_test.rs"
 
 
 
