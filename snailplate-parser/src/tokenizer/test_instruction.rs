@@ -393,39 +393,6 @@ fn tokenizer_instruction_include_test_11() {
 
 
 
-// cargo test -F future_passing_tests -F dbg_tokenbuf_verbose -F dbg_tokenizer_verbose tokenizer::test_instruction::tokenizer_instruction_include_test_101 -- --nocapture
-#[test]
-#[cfg(feature = "future_passing_tests")]
-fn tokenizer_instruction_include_test_101() {
-   println!("Starging iterator test 05");
-   let mut t = Tokenizer::new();
-
-   #[allow(unused_must_use)] {
-      t.src_push(None, "@include(xxx)".into());
-   }
-
-   let list: Vec<Token> = [
-      Token::Real(TokenBody::Include(Span {
-         index: 0, line: 0, pos_line: 0, pos_region: 0, pos_zero: 0, length: 8
-      })),
-      Token::Real(TokenBody::OpenParen(Span {
-         index: 0, line: 0, pos_line: 8, pos_region: 8, pos_zero: 8, length: 1
-      })),
-      Token::Real(TokenBody::Defered(Span {
-         index: 0, line: 0, pos_line: 9, pos_region: 9, pos_zero: 9, length: 3
-      })),
-      Token::Real(TokenBody::CloseParen(Span {
-         index: 0, line: 0, pos_line: 12, pos_region: 12, pos_zero: 12, length: 1
-      })),
-   ].to_vec();
-
-   if let Err((expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
-      panic!("Token mismatch. Expect: {:?} vs got: {:?}", expect, got);
-   }
-}
-
-
-
 // cargo test -F future_passing_tests -F dbg_tokenbuf_verbose -F dbg_tokenizer_verbose tokenizer::test_instruction::tokenizer_instruction_include_test_102 -- --nocapture
 #[test]
 #[cfg(feature = "future_passing_tests")]

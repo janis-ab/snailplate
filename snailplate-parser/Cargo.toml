@@ -36,6 +36,13 @@ tokenlist_match_or_fail_print_only = []
 
 
 
+# Names for folders should always be in singular not plural.
+[[test]]
+name = "tokenizer_test"
+path = "test/tokenizer_test.rs"
+
+
+
 # To test all features, run:
 # cargo test-all-features
 [package.metadata.cargo-all-features]

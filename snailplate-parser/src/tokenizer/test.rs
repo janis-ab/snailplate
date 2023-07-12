@@ -1043,32 +1043,5 @@ fn test_whitespace_into_tokenbuf_13(){
 
 
 
-// cargo test -F dbg_tokenbuf_verbose -F dbg_tokenizer_verbose tokenizer::test::tokenizer_defered_newlines_test_01 -- --nocapture
-#[test]
-fn tokenizer_defered_newlines_test_01() {
-   let mut t = Tokenizer::new();
-
-   #[allow(unused_must_use)] {
-      t.src_push(None, "X \n Y".into());
-   }
-
-   let list: Vec<Token> = [
-      Token::Real(TokenBody::Defered(Span {
-         index: 0, line: 0, pos_line: 0, pos_region: 0, pos_zero: 0, length: 2
-      })),
-      Token::Real(TokenBody::Newline(Span {
-         index: 0, line: 0, pos_line: 2, pos_region: 2, pos_zero: 2, length: 1
-      })),
-      Token::Real(TokenBody::Defered(Span {
-         index: 0, line: 1, pos_line: 0, pos_region: 3, pos_zero: 3, length: 2
-      })),
-   ].to_vec();
-
-   if let Err((expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
-      panic!("Token mismatch. Expect: {:?} vs got: {:?}", expect, got);
-   }
-}
-
-
 
 // ================== EOF: do not write below this ============================
