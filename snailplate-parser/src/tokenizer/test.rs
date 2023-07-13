@@ -148,7 +148,7 @@ fn tokenizer_test_buf_mixed_in_out() {
       length: 1
    }));
 
-   if let Ok(None) = t.tokenbuf_push(tok) {
+   if let Ok(_) = t.tokenbuf_push(tok) {
       panic!("Tokenbuf allowed to do push when not being fully consumed before!");
    }
 

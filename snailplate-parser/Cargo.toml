@@ -59,4 +59,4 @@ path = "test/include_resolver_test.rs"
 # Exclude these features from build matrix. In general features that are related
 # to output verbosity while developing are not interesting for automated feature
 # variation testing.
-denylist = ["dbg_tokenbuf_verbose"]
+denylist = ["dbg_tokenbuf_verbose", "future_passing_tests"]
