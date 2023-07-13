@@ -6,7 +6,7 @@ use crate::{
    span::Span,
    parse_error::{
       ParseError,
-      InternalError,
+      Source,
       Component,
    },
 };
@@ -1013,9 +1013,11 @@ fn test_whitespace_into_tokenbuf_12(){
          (" ", 0, 0, 3),
       ].to_vec(),
       [
-         Token::Fatal(ParseError::InternalError(InternalError {
+         Token::Fatal(ParseError::InternalError(Source {
             component: Component::Tokenizer,
             line: 0,
+            code: 0,
+            pos_zero: 0,
          })),
       ].to_vec()
    );

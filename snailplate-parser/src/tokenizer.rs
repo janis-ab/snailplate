@@ -5,7 +5,7 @@ use crate::{
    parse_error::{
       ParseError,
       InstructionError,
-      InternalError,
+      Source,
       Component,
    }
 };
@@ -232,7 +232,12 @@ impl TokenBuf {
       // that were parsed and then return them in iterator till buffer is empty.
       #[cfg(feature = "tokenbuf_push_guard")] {
          if len != self.num_tokens {
-            return Err(Token::Fatal(ParseError::InternalError));
+            return Err(Token::Fatal(ParseError::InternalError(Source {
+               pos_zero: 0,
+               component: Component::TokenBuf,
+               line: line!(),
+               code: 0,
+            })));
          }
       }
 
@@ -262,9 +267,11 @@ impl TokenBuf {
          self.num_tokens = 0;
          self.buf.clear();
 
-         return Err(Token::Fatal(ParseError::InternalError(InternalError {
+         return Err(Token::Fatal(ParseError::InternalError(Source {
             component: Component::TokenBuf,
             line: line!(),
+            code: 0,
+            pos_zero: 0,
          })));
       }
 
@@ -296,9 +303,11 @@ impl TokenBuf {
          self.num_tokens = 0;
          self.buf.clear();
 
-         return Err(Token::Fatal(ParseError::InternalError(InternalError {
+         return Err(Token::Fatal(ParseError::InternalError(Source {
             component: Component::TokenBuf,
             line: line!(),
+            code: 0,
+            pos_zero: 0,
          })));
       };
 
@@ -415,9 +424,11 @@ fn tokenizer_line_tokenize(tokenbuf: &mut TokenBuf, index: usize, src: &[u8],
    // TODO: In future should have better internal error location, so we can find
    // error sooner.
 
-   Some(Token::Fatal(ParseError::InternalError(InternalError {
+   Some(Token::Fatal(ParseError::InternalError(Source {
       component: Component::Tokenizer,
       line: line!(),
+      code: 0,
+      pos_zero: _pos,
    })))
 }
 
@@ -860,7 +871,12 @@ impl Tokenizer {
       #[cfg(feature = "tokenizer_integrity_guard")] {
          if src[pos_at] != 0x40 {
             match self.fail_result_option_token(
-               Token::Fatal(ParseError::InternalError)
+               Token::Fatal(ParseError::InternalError(Source {
+                  pos_zero: self.pos_zero,
+                  component: Component::Tokenizer,
+                  line: line!(),
+                  code: 0,
+               }))
             ) {
                Ok(tok) => {
                   return tok;
@@ -1605,17 +1621,21 @@ impl Tokenizer {
                      self.tokenbuf_push(tok);
                   }
                   self.parse_error_prev = ParseError::InternalError(
-                     InternalError {
+                     Source {
                         component: Component::Tokenizer,
                         line: line!(),
+                        code: 0,
+                        pos_zero: self.pos_zero,
                      }
                   );
                }
 
                return Some(self.fail_token(Token::Fatal(
-                  ParseError::InternalError(InternalError {
+                  ParseError::InternalError(Source {
                      component: Component::Tokenizer,
                      line: line!(),
+                     code: 0,
+                     pos_zero: self.pos_zero,
                   })
                )));
             }
@@ -1645,17 +1665,21 @@ impl Tokenizer {
                      self.tokenbuf_push(tok);
                   }
                   self.parse_error_prev = ParseError::InternalError(
-                     InternalError {
+                     Source {
                         component: Component::Tokenizer,
                         line: line!(),
+                        code: 0,
+                        pos_zero: self.pos_zero,
                      }
                   );
                }
 
                return Some(self.fail_token(Token::Fatal(
-                  ParseError::InternalError(InternalError {
+                  ParseError::InternalError(Source {
                      component: Component::Tokenizer,
                      line: line!(),
+                     code: 0,
+                     pos_zero: self.pos_zero,
                   })
                )));
             }
@@ -1710,17 +1734,21 @@ impl Tokenizer {
                   self.tokenbuf_push(tok);
                }
                self.parse_error_prev = ParseError::InternalError(
-                  InternalError {
+                  Source {
                      component: Component::Tokenizer,
                      line: line!(),
+                     code: 0,
+                     pos_zero: self.pos_zero,
                   }
                );
             }
 
             return Some(self.fail_token(Token::Fatal(
-               ParseError::InternalError(InternalError {
+               ParseError::InternalError(Source {
                   component: Component::Tokenizer,
                   line: line!(),
+                  code: 0,
+                  pos_zero: self.pos_zero,
                })
             )));
          }
@@ -1751,17 +1779,21 @@ impl Tokenizer {
                            self.tokenbuf_push(tok);
                         }
                         self.parse_error_prev = ParseError::InternalError(
-                           InternalError {
+                           Source {
                               component: Component::Tokenizer,
                               line: line!(),
+                              code: 0,
+                              pos_zero: self.pos_zero,
                            }
                         );
                      }
 
                      return Some(self.fail_token(Token::Fatal(
-                        ParseError::InternalError(InternalError {
+                        ParseError::InternalError(Source {
                            component: Component::Tokenizer,
                            line: line!(),
+                           code: 0,
+                           pos_zero: self.pos_zero,
                         })
                      )));
                   }
@@ -1778,17 +1810,21 @@ impl Tokenizer {
                      self.tokenbuf_push(tok);
                   }
                   self.parse_error_prev = ParseError::InternalError(
-                     InternalError {
+                     Source {
                         component: Component::Tokenizer,
                         line: line!(),
+                        code: 0,
+                        pos_zero: self.pos_zero,
                      }
                   );
                }
 
                return Some(self.fail_token(Token::Fatal(
-                  ParseError::InternalError(InternalError {
+                  ParseError::InternalError(Source {
                      component: Component::Tokenizer,
                      line: line!(),
+                     code: 0,
+                     pos_zero: self.pos_zero,
                   })
                )));
             }

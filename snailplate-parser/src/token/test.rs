@@ -5,7 +5,7 @@ use crate::{
    tokenbody::test::FormatTester,
    parse_error::{
       ParseError,
-      InternalError,
+      Source,
       Component,
    },   
 };
@@ -43,15 +43,17 @@ fn test_formatter_01(){
 fn test_formatter_internal_error() {
    let t = FormatTester::build("XXPASSZZ");
 
-   let tok = Token::Fatal(ParseError::InternalError(InternalError {
+   let tok = Token::Fatal(ParseError::InternalError(Source {
       component: Component::Tokenizer,
       line: 0,
+      code: 0,
+      pos_zero: 0,
    }));
 
    let out = format!("{:?}", tok.fmt(&t));
    println!("InternalError as text: '{}'", out);
 
-   let pass = "Fatal(InternalError(InternalError { component: Tokenizer, line: 0 }))";
+   let pass = "Fatal(InternalError(Source { pos_zero: 0, component: Tokenizer, line: 0, code: 0 }))";
 
    assert_eq!(out.as_str(), pass);
 }
