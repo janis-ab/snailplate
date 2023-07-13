@@ -212,7 +212,7 @@ fn tokenizer_line_tokenize(tokenbuf: &mut TokenBuf, index: usize, src: &[u8],
          let len_wsp = _pos - _pos_prev;
 
          if len_wsp > 0 {
-            if let Err(token) = tokenbuf.push(Token::Real(
+            if let Err(token) = tokenbuf.append(Token::Real(
                TokenBody::WhiteSpace(Span {
                   index: index,
                   pos_region: _pos_prev,
@@ -226,7 +226,7 @@ fn tokenizer_line_tokenize(tokenbuf: &mut TokenBuf, index: usize, src: &[u8],
             }
          }
 
-         if let Err(token) = tokenbuf.push(Token::Real(
+         if let Err(token) = tokenbuf.append(Token::Real(
             TokenBody::Newline(Span {
                index: index,
                pos_region: _pos_prev + len_wsp,
@@ -329,7 +329,7 @@ fn tokenizer_whitespace_tokenize(tokenbuf: &mut TokenBuf, index: usize,
    // Build WhiteSpace token from all that is left without any newline. If
    // pos is at pos_end, this means that last character was newline
    if pos_end != pos {
-      if let Err(token) = tokenbuf.push(Token::Real(
+      if let Err(token) = tokenbuf.append(Token::Real(
          TokenBody::WhiteSpace(Span {
             index: index,
             pos_region: pos,
@@ -386,7 +386,7 @@ impl Tokenizer {
    // It is allowed to use tokenbuf in all-in/all-out manner only.
    #[inline(always)]
    fn tokenbuf_push(&mut self, tok: Token) -> Result<(), Token> {
-      if let Err(token) = self.tokenbuf.push(tok) {
+      if let Err(token) = self.tokenbuf.append(tok) {
          return Err(self.fail_token(token));
       }
 
@@ -405,7 +405,7 @@ impl Tokenizer {
          );
       }
 
-      match self.tokenbuf.consume() {
+      match self.tokenbuf.popleft() {
          Ok(some_token) => Ok(some_token),
          Err(token) => {
             Err(self.fail_token(token))
@@ -549,7 +549,7 @@ impl Tokenizer {
                let len_defered = pos - pos_token_start;
                let len_prev_token = pos_token_start - self.pos_region;
 
-               if let Err(token) = self.tokenbuf.push(Token::Real(
+               if let Err(token) = self.tokenbuf.append(Token::Real(
                   TokenBody::Newline(Span {
                      index: self.index,
                      pos_region: pos,
@@ -1292,7 +1292,7 @@ impl Tokenizer {
                let len_defered = pos - pos_token_start;
                let len_prev_token = pos_token_start - self.pos_region;
 
-               if let Err(token) = self.tokenbuf.push(Token::Real(
+               if let Err(token) = self.tokenbuf.append(Token::Real(
                   TokenBody::Defered(Span {
                      index: self.index,
                      pos_region: pos_token_start,
@@ -1305,7 +1305,7 @@ impl Tokenizer {
                   return Some(token);
                };
 
-               if let Err(token) = self.tokenbuf.push(Token::Real(
+               if let Err(token) = self.tokenbuf.append(Token::Real(
                   TokenBody::Newline(Span {
                      index: self.index,
                      pos_region: pos,
