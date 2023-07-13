@@ -61,7 +61,7 @@ pub enum ParseError {
    /// This error is returned when memory could not be allocated. This is
    /// highly unlikeley to happen, since most probably in such a case something
    /// might have already called panic!
-   NoMemory,
+   NoMemory(Source),
 
    /// This error is returned when there is some bug in code. Parser/tokenizer
    /// or any other component has reached a state that is not allowed. In such

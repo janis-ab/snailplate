@@ -48,7 +48,12 @@ impl TokenBuf {
       let len = tb.len();
       if cap < len + 1 {
          if let Err(..) = tb.try_reserve(16) {
-            return Err(Token::Fatal(ParseError::NoMemory));
+            return Err(Token::Fatal(ParseError::NoMemory(Source {
+               pos_zero: 0,
+               component: Component::TokenBuf,
+               line: line!(),
+               code: 3,
+            })));
          }
       }
 

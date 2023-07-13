@@ -73,7 +73,7 @@ impl Token {
                // TODO: In future maybe we can construct a meaningful Span object.
                None
             }
-            Pe::NoMemory => None,
+            Pe::NoMemory(..) => None,
             Pe::InternalError(..) => None,
             Pe::None => None,
             Pe::NoInput => None,
@@ -99,8 +99,9 @@ impl<'a, F: SpanFormatter> std::fmt::Debug for TokenFormatWrapper<'a, F> {
          T::Real(body) => (Some("Real("), None, Some(")"), Some(body)),
          T::Phantom(body) => (Some("Phantom("), None, Some(")"), Some(body)),
          T::Fatal(parse_error) => match parse_error {
-            Pe::NoMemory => {
-               (Some("Fatal(NoMemory("), None, Some("))"), None)
+            Pe::NoMemory(source) => {
+               let source = format!("{:?}", source);
+               (Some("Fatal(NoMemory("), Some(source), Some("))"), None)
             }
             Pe::InternalError(ie) => {
                (Some("Fatal(InternalError("), Some(format!("{:?}", ie)), Some("))"), None)
@@ -123,8 +124,9 @@ impl<'a, F: SpanFormatter> std::fmt::Debug for TokenFormatWrapper<'a, F> {
             }
          }
          T::Error(parse_error) => match parse_error {
-            Pe::NoMemory => {
-               (Some("Error(NoMemory("), None, Some("))"), None)
+            Pe::NoMemory(source) => {
+               let source = format!("{:?}", source);
+               (Some("Error(NoMemory("), Some(source), Some("))"), None)
             }
             Pe::InternalError(ie) => {
                (Some("Error(InternalError("), Some(format!("{:?}", ie)), Some("))"), None)

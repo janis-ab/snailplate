@@ -432,7 +432,12 @@ impl Tokenizer {
       if cap < len + 1 {
          if let Err(..) = ss.try_reserve(8){
             return Err(self.fail_token(
-               Token::Fatal(ParseError::NoMemory)
+               Token::Fatal(ParseError::NoMemory(Source {
+                  pos_zero: self.pos_zero,
+                  component: Component::Tokenizer,
+                  line: line!(),
+                  code: 0,
+               }))
             ));
          }
       }
@@ -457,7 +462,12 @@ impl Tokenizer {
       if cap < len + 1 {
          if let Err(..) = rm.try_reserve(16) {
             return Err(self.fail_token(
-               Token::Fatal(ParseError::NoMemory)
+               Token::Fatal(ParseError::NoMemory(Source {
+                  pos_zero: self.pos_zero,
+                  component: Component::Tokenizer,
+                  line: line!(),
+                  code: 0,
+               }))
             ));
          }
       }
@@ -485,7 +495,12 @@ impl Tokenizer {
       if cap < len + 1 {
          if let Err(..) = r.try_reserve(16) {
             return Err(self.fail_token(
-               Token::Fatal(ParseError::NoMemory)
+               Token::Fatal(ParseError::NoMemory(Source {
+                  pos_zero: self.pos_zero,
+                  component: Component::Tokenizer,
+                  line: line!(),
+                  code: 0,
+               }))
             ));
          }
       }
