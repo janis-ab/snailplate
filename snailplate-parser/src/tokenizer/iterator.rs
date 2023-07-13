@@ -19,7 +19,7 @@ impl Iterator for Tokenizer {
       // We allow to consume tokenbuf even if Tokenizer is in failed state. This
       // is so that user can receive all warning/error tokens up to the point
       // where Tokenizer failed.
-      if self.tokenbuf.num_tokens > 0 {
+      if self.tokenbuf.num_tokens() > 0 {
          match self.tokenbuf_consume() {
             Ok(tok) => {
                if let Some(tok) = tok {

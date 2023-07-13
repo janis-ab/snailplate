@@ -1,6 +1,7 @@
 use crate::{
    token::Token,
    tokenbody::TokenBody,
+   tokenbuf::TokenBuf,
    span::Span,
    parse_error::{
       ParseError,
@@ -100,23 +101,6 @@ struct SrcRegionMeta {
 
 
 
-#[derive(Debug)]
-struct TokenBuf {
-   /// Number of tokens that are available inside tokenbuf. At the same time this
-   /// is how many items from the tokenbuf end has to be consumed before clearing
-   /// array empty.
-   num_tokens: usize,
-
-   /// This buffer stores tokens temporarily. The idea is that while tokenizer is
-   /// consuming text, it can happen that it recognizes multiple tokens in one
-   /// go, but iterator interface requires us to return only single item. Thus
-   /// non returned items can be stored in buffer. This should make it easier to
-   /// write a tokenizer.
-   buf: Vec<Token>,
-}
-
-
-
 /// Tokenizer struct stores internal state for Tokenizer. Each time a new byte
 /// is read, it increases pos_*, line values, once Token is recognized, those
 /// values are copied into Span token that is wrapped with returned Token.
@@ -186,149 +170,6 @@ pub struct Tokenizer {
    pos_zero_prev_instr: usize,
 }
 
-
-
-impl TokenBuf {
-   fn new() -> Self {
-      Self {
-         num_tokens: 0,
-         buf: Vec::with_capacity(16)
-      }
-   }
-
-
-
-   fn push(&mut self, tok: Token) -> Result<(), Token> {
-      let tb = &mut self.buf;
-
-      // Ensure that there is enough memory in Vec. This is because push will
-      // panic if there is not enough capacity, but we do not want to panic on
-      // that. There is an experimental API push_within_capacity, but i do not
-      // want to use experimental API either.
-      let cap = tb.capacity();
-      let len = tb.len();
-      if cap < len + 1 {
-         if let Err(..) = tb.try_reserve(16) {
-            return Err(Token::Fatal(ParseError::NoMemory));
-         }
-      }
-
-      #[cfg(feature = "dbg_tokenbuf_verbose")] {
-         println!("Tokenbuf push: {:?}", tok);
-      }
-
-      // This feature is mostly intended to be used while developing to detect
-      // some Tokenizers state problems.
-      //
-      // In general, the idea is simple - Tokenizer should do single action
-      // regarding tokenbufer untill it is complete; i.e. if pushing tokens to
-      // tokenbuf, then only push, if consuming items from tokenbuf, then
-      // consume till tokenbuf is empty. It is not allowed to insert 5 items,
-      // remove 2, then insert 1, etc. All-in or all-out, each action can be
-      // iterated.
-      //
-      // This is like so, because i don't want to use dequeue. It seems too
-      // heavy data structure for this task. We just need to buffer some tokens
-      // that were parsed and then return them in iterator till buffer is empty.
-      #[cfg(feature = "tokenbuf_push_guard")] {
-         if len != self.num_tokens {
-            return Err(Token::Fatal(ParseError::InternalError(Source {
-               pos_zero: 0,
-               component: Component::TokenBuf,
-               line: line!(),
-               code: 0,
-            })));
-         }
-      }
-
-      self.buf.push(tok);
-      self.num_tokens += 1;
-
-      Ok(())
-   }
-
-
-
-   // Function that takes one token out of tokenbuf.
-   // It is allowed to use tokenbuf in all-in/all-out manner only.
-   #[inline(always)]
-   fn consume(&mut self) -> Result<Option<Token>, Token> {
-      if self.num_tokens < 1 {
-         return Ok(None);
-      }
-
-      let num_tokens = self.num_tokens;
-      let num_in_buf = self.buf.len();
-
-      // It is necessary to guard against access outside Vec buffer. We don't
-      // want to panic due to such an error.
-      if num_in_buf < num_tokens {
-         // Unfortunateley we must alter tokenbuf state to avoid infinite loop.
-         self.num_tokens = 0;
-         self.buf.clear();
-
-         return Err(Token::Fatal(ParseError::InternalError(Source {
-            component: Component::TokenBuf,
-            line: line!(),
-            code: 0,
-            pos_zero: 0,
-         })));
-      }
-
-      let idx_item = num_in_buf - num_tokens;
-      self.num_tokens -= 1;
-
-      #[cfg(feature = "dbg_tokenbuf_verbose")] {
-         println!("Tokenbuf: return item at index: {}", idx_item);
-      }
-
-      let num_tokens = self.num_tokens;
-
-      let tok_ref = self.buf.get(idx_item);
-      let token = if let Some(tok_ref) = tok_ref {
-         let item = (*tok_ref).clone();
-         #[cfg(feature = "dbg_tokenbuf_verbose")] {
-            println!("Tokenbuf: return item at item: {:?}", item);
-         }
-         item
-      }
-      else {
-         // This is really bad case; bug in code. The only way i see this
-         // happening is that num_tokens is out of sync with tokenbuf.len(), but
-         // never the less, we must handle that gracefully.
-
-         // Unfortunateley we must alter tokenbuf state, because tokenbuf_consume
-         // is allowed even if Tokenizer is in Failed state. I don't expect this
-         // to happen, so in case it does, will add extra debugging at that time.
-         self.num_tokens = 0;
-         self.buf.clear();
-
-         return Err(Token::Fatal(ParseError::InternalError(Source {
-            component: Component::TokenBuf,
-            line: line!(),
-            code: 0,
-            pos_zero: 0,
-         })));
-      };
-
-      #[cfg(feature = "dbg_tokenbuf_verbose")] {
-         println!("Tokenbuf: array num items: {}, self.num_tokens: {}",
-            num_in_buf, num_tokens
-         );
-      }
-
-      // This was the last item that we cloned out, so we can flush array
-      if num_tokens < 1 {
-         #[cfg(feature = "dbg_tokenbuf_verbose")] {
-            println!("self.num_tokens: {}, must CLEAR BUFFER", self.num_tokens);
-         }
-
-         self.buf.clear();
-      }
-
-      Ok(Some(token))
-   }
-}
 
 
 // Tokenize signle line into two tokens: WhiteSpace and Newline and push
@@ -1948,7 +1789,7 @@ fn tokenlist_match_or_fail(t: &mut Tokenizer, list: &[Token], allow_unbuffered: 
       // tokenizer. This must be at the end of the iteration, before next token
       // is consumed, otherwize Tokenizer would build token from source.
       if !allow_unbuffered {
-         if t.tokenbuf.buf.len() < 1 {
+         if t.tokenbuf.buf_len() < 1 {
             break;
          }
       }

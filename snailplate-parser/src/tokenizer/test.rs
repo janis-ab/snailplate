@@ -39,7 +39,7 @@ fn tokenizer_test_buf_generic() {
       }
    }
 
-   assert_eq!(t.tokenbuf.num_tokens, t.tokenbuf.buf.len(), "Bad num_tokens count!");
+   assert_eq!(t.tokenbuf.num_tokens(), t.tokenbuf.buf_len(), "Bad num_tokens count!");
 
    for i in 0..3 {
       match t.tokenbuf_consume() {
@@ -457,7 +457,7 @@ fn test_whitespace_into_tokenbuf(
          // we must test already inserted tokens, otherwise internal state
          // will not be as expected for upcoming testing items/tuples.
 
-         let num_tokens = t.tokenbuf.buf.len();
+         let num_tokens = t.tokenbuf.buf_len();
          if let Err((expect, got)) = tokenlist_match_or_fail(&mut t,
             &expect[slice_base..slice_base + num_tokens], false
          ){
