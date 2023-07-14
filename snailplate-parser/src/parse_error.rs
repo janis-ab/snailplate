@@ -57,6 +57,13 @@ pub enum ParseError {
    /// a case, it should be investigated and fixes should be applied to fix it.
    InternalError(Source),
 
+   /// Instruction requires arguments in parenthesis, but OpenParen was not
+   /// provided.
+   InstructionNotOpen(Source),
+
+   /// Instruction requires arguments in parenthesis, but none were provided.
+   InstructionMissingArgs(Source),
+
    InstructionError(Source),
 
    /// This error is returned, when instruction is opened, but not closed, i.e.

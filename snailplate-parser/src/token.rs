@@ -75,6 +75,8 @@ impl Token {
          => match parse_error {
             Pe::InstructionError(..) 
             | Pe::OpenInstruction(..)
+            | Pe::InstructionNotOpen(..)
+            | Pe::InstructionMissingArgs(..)
             | Pe::NoMemory(..)
             | Pe::InternalError(..)
             | Pe::NoInput(..)
@@ -122,6 +124,10 @@ impl<'a, F: SpanFormatter> std::fmt::Debug for TokenFormatWrapper<'a, F> {
                => error_tuple!(Fatal, OpenInstruction, source),
             Pe::InstructionError(source)
                => error_tuple!(Fatal, InstructionError, source),
+            Pe::InstructionNotOpen(source)
+               => error_tuple!(Fatal, InstructionNotOpen, source),
+            Pe::InstructionMissingArgs(source)
+               => error_tuple!(Fatal, InstructionMissingArgs, source),
             Pe::NoMemory(source)
                => error_tuple!(Fatal, NoMemory, source),
             Pe::InternalError(source)
@@ -138,6 +144,10 @@ impl<'a, F: SpanFormatter> std::fmt::Debug for TokenFormatWrapper<'a, F> {
                => error_tuple!(Error, OpenInstruction, source),
             Pe::InstructionError(source)
                => error_tuple!(Error, InstructionError, source),
+            Pe::InstructionNotOpen(source)
+               => error_tuple!(Error, InstructionNotOpen, source),
+            Pe::InstructionMissingArgs(source)
+               => error_tuple!(Error, InstructionMissingArgs, source),
             Pe::NoMemory(source)
                => error_tuple!(Error, NoMemory, source),
             Pe::InternalError(source)

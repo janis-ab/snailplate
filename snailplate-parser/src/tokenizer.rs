@@ -1824,6 +1824,8 @@ fn tokenlist_match_or_fail(t: &mut Tokenizer, list: &[Token], allow_unbuffered: 
                | (Pe::InternalError(s1), Pe::InternalError(s2))
                | (Pe::OpenInstruction(s1), Pe::OpenInstruction(s2))
                | (Pe::InstructionError(s1), Pe::InstructionError(s2))
+               | (Pe::InstructionNotOpen(s1), Pe::InstructionNotOpen(s2))
+               | (Pe::InstructionMissingArgs(s1), Pe::InstructionMissingArgs(s2))
                => {
                   if s1.pos_zero != s2.pos_zero
                   || s1.component != s2.component
@@ -1833,7 +1835,9 @@ fn tokenlist_match_or_fail(t: &mut Tokenizer, list: &[Token], allow_unbuffered: 
                   }
                }
                _ => {
-                  return Err((Some((*expect).clone()), Some(token)));
+                  if *expect != token {
+                     return Err((Some((*expect).clone()), Some(token)));
+                  }
                }
             }
             (token, expect) => {
