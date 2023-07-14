@@ -64,20 +64,27 @@ impl Token {
       use ParseError as Pe;
 
       match &self {
-         T::Real(body) | T::Phantom(body) => Some(body.span_clone()),
+         T::Real(body)
+         | T::Phantom(body)
+         => {
+            Some(body.span_clone())
+         }
+
          T::Fatal(parse_error)
-         | T::Error(parse_error) => match parse_error {
+         | T::Error(parse_error)
+         => match parse_error {
             Pe::InstructionError(..) 
             | Pe::OpenInstruction(..)
+            | Pe::NoMemory(..)
+            | Pe::InternalError(..)
+            | Pe::NoInput(..)
             => {
                // TODO: In future maybe we can construct a meaningful Span object.
                None
             }
-            Pe::NoMemory(..) => None,
-            Pe::InternalError(..) => None,
             Pe::None => None,
-            Pe::NoInput => None,
          }
+
          T::StateChange => None
       }
    }
@@ -95,57 +102,50 @@ impl<'a, F: SpanFormatter> std::fmt::Debug for TokenFormatWrapper<'a, F> {
       use Token as T;
       use ParseError as Pe;
 
+      // This macro is the least i could write to ease a little bit code
+      // repetition. At first i wanted to write a macro that generates match
+      // statement arms with body, but Rust does not suppot that, then i did
+      // not want to pass $source as an argument, but Rust macro hygene forces
+      // me to do so.
+      macro_rules! error_tuple {
+         ($case:tt, $parse_error:tt, $source:tt) => {(
+            Some(concat!(stringify!($case), "(", stringify!($parse_error), "(")),
+            Some(format!("{:?}", $source)), Some("))"), None
+         )}
+      }
+
       let (start, mid, end, body) = match self.0 {
          T::Real(body) => (Some("Real("), None, Some(")"), Some(body)),
          T::Phantom(body) => (Some("Phantom("), None, Some(")"), Some(body)),
          T::Fatal(parse_error) => match parse_error {
-            Pe::NoMemory(source) => {
-               let source = format!("{:?}", source);
-               (Some("Fatal(NoMemory("), Some(source), Some("))"), None)
-            }
-            Pe::InternalError(ie) => {
-               (Some("Fatal(InternalError("), Some(format!("{:?}", ie)), Some("))"), None)
-            }
+            Pe::OpenInstruction(source)
+               => error_tuple!(Fatal, OpenInstruction, source),
+            Pe::InstructionError(source)
+               => error_tuple!(Fatal, InstructionError, source),
+            Pe::NoMemory(source)
+               => error_tuple!(Fatal, NoMemory, source),
+            Pe::InternalError(source)
+               => error_tuple!(Fatal, InternalError, source),
+            Pe::NoInput(source)
+               => error_tuple!(Fatal, NoInput, source),
             Pe::None => {
-               (Some("Fatal(None("), None, Some("))"), None)
-            }
-            Pe::NoInput => {
-               (Some("Fatal(NoInput("), None, Some("))"), None)
-            }
-            Pe::InstructionError(ie) => {
-               // TODO: Update whole match return Tuple in such a way, so that
-               // we can print InstructionError data as well.
-               (Some("Fatal(InstructionError(.."), Some(format!("{:?}", ie)), Some("))"), None)
-            }
-            Pe::OpenInstruction(ie) => {
-               // TODO: Update whole match return Tuple in such a way, so that
-               // we can print InstructionError data as well.
-               (Some("Fatal(OpenInstruction(.."), Some(format!("{:?}", ie)), Some("))"), None)
+               (Some("Fatal(None"), None, Some(")"), None)
             }
          }
+
          T::Error(parse_error) => match parse_error {
-            Pe::NoMemory(source) => {
-               let source = format!("{:?}", source);
-               (Some("Error(NoMemory("), Some(source), Some("))"), None)
-            }
-            Pe::InternalError(ie) => {
-               (Some("Error(InternalError("), Some(format!("{:?}", ie)), Some("))"), None)
-            }
+            Pe::OpenInstruction(source)
+               => error_tuple!(Error, OpenInstruction, source),
+            Pe::InstructionError(source)
+               => error_tuple!(Error, InstructionError, source),
+            Pe::NoMemory(source)
+               => error_tuple!(Error, NoMemory, source),
+            Pe::InternalError(source)
+               => error_tuple!(Error, InternalError, source),
+            Pe::NoInput(source)
+               => error_tuple!(Error, NoInput, source),
             Pe::None => {
-               (Some("Error(None("), None, Some("))"), None)
-            }
-            Pe::NoInput => {
-               (Some("Error(NoInput("), None, Some("))"), None)
-            }
-            Pe::InstructionError(ie) => {
-               // TODO: Update whole match return Tuple in such a way, so that
-               // we can print InstructionError data as well.
-               (Some("Fatal(InstructionError("), Some(format!("{:?}", ie)), Some("))"), None)
-            }
-            Pe::OpenInstruction(ie) => {
-               // TODO: Update whole match return Tuple in such a way, so that
-               // we can print InstructionError data as well.
-               (Some("Fatal(OpenInstruction("), Some(format!("{:?}", ie)), Some("))"), None)
+               (Some("Error(None"), None, Some(")"), None)
             }
          }
          T::StateChange => (Some("StateChange"), None, None, None),

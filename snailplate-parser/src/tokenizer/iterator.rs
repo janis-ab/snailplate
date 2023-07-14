@@ -4,7 +4,11 @@ use crate::{
       TokenizerState,
    },
    token::Token,
-   parse_error::ParseError,
+   parse_error::{
+      ParseError,
+      Component,
+      Source,
+   },
 };
 
 
@@ -60,11 +64,18 @@ impl Iterator for Tokenizer {
             None
          }
          Ts::ExpectInput => {
-            if let ParseError::NoInput = self.parse_error_prev {
+            if let ParseError::NoInput(..) = self.parse_error_prev {
                None
             }
             else {
-               self.parse_error_prev = ParseError::NoInput;
+               let error = ParseError::NoInput(Source {
+                  pos_zero: 0,
+                  component: Component::Tokenizer,
+                  line: line!(),
+                  code: 0,
+               });
+
+               self.parse_error_prev = error;
 
                // TODO: I don't know if in this case tokenizer state should be
                // set to "failed". Because this is a wrong way to use this
@@ -73,7 +84,7 @@ impl Iterator for Tokenizer {
                // state. If we did set state to failed here, then we would have
                // to write special recovery code in src_push function. Maybe that
                // is the right way to do.
-               Some(Token::Error(ParseError::NoInput))
+               Some(Token::Error(error))
             }
          }
       }

@@ -1,18 +1,7 @@
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Component {
    Tokenizer,
    TokenBuf,
-}
-
-
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct InstructionError {
-   // This is unique "global" position in token stream for @instruction token
-   // that has not been satisfied by required conditions.
-   pub pos_zero: usize
-
-   // TODO: add more fields
 }
 
 
@@ -22,7 +11,7 @@ pub struct InstructionError {
 ///
 /// Since we return error, warning, etc. Tokens, it is useful to be able to
 /// find, what was the source that produced this Token.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Source {
    /// This is a unique "global" position in Token stream for given Component at 
    /// the moment when something was emited/returned. The use-case for value 
@@ -56,7 +45,7 @@ pub struct Source {
 
 
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ParseError {
    /// This error is returned when memory could not be allocated. This is
    /// highly unlikeley to happen, since most probably in such a case something
@@ -68,15 +57,15 @@ pub enum ParseError {
    /// a case, it should be investigated and fixes should be applied to fix it.
    InternalError(Source),
 
-   InstructionError(InstructionError),
+   InstructionError(Source),
 
    /// This error is returned, when instruction is opened, but not closed, i.e.
    /// "@include(".
-   OpenInstruction(InstructionError),
+   OpenInstruction(Source),
 
    /// This error is returned when Iterator is built but no input was loaded
    /// for tokenizer.
-   NoInput,
+   NoInput(Source),
 
    /// Since we intend to store previous error in Tokenizer state, we need to
    /// have an initial value.

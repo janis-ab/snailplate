@@ -5,7 +5,8 @@ use crate::{
    span::Span,
    parse_error::{
       ParseError,
-      InstructionError
+      Source,
+      Component,
    },
 };
 
@@ -33,8 +34,11 @@ fn tokenizer_instruction_include_test_01() {
       Token::Real(TokenBody::OpenParen(Span {
          index: 0, line: 0, pos_line: 8, pos_region: 8, pos_zero: 8, length: 1
       })),
-      Token::Error(ParseError::OpenInstruction(InstructionError {
+      Token::Error(ParseError::OpenInstruction(Source {
          pos_zero: 0,
+         component: Component::Tokenizer,
+         line: 0,
+         code: 0,
       })),
    ].to_vec();
 
@@ -83,8 +87,11 @@ fn tokenizer_instruction_include_test_02() {
       Token::Real(TokenBody::OpenParen(Span {
          index: 0, line: 3, pos_line: 4, pos_region: 19, pos_zero: 19, length: 1
       })),
-      Token::Error(ParseError::OpenInstruction(InstructionError {
+      Token::Error(ParseError::OpenInstruction(Source {
          pos_zero: 0,
+         component: Component::Tokenizer,
+         line: 0,
+         code: 0
       })),
    ].to_vec();
 
@@ -118,8 +125,11 @@ fn tokenizer_instruction_include_test_03() {
       Token::Real(TokenBody::OpenParen(Span {
          index: 0, line: 0, pos_line: 11, pos_region: 11, pos_zero: 11, length: 1
       })),
-      Token::Error(ParseError::OpenInstruction(InstructionError {
+      Token::Error(ParseError::OpenInstruction(Source {
          pos_zero: 3,
+         component: Component::Tokenizer,
+         line: 0,
+         code: 0,
       })),
    ].to_vec();
 
@@ -198,8 +208,11 @@ fn tokenizer_instruction_include_test_06() {
       Token::Real(TokenBody::UnescapedAt(Span {
          index: 0, line: 0, pos_line: 0, pos_region: 0, pos_zero: 0, length: 1
       })),
-      Token::Error(ParseError::InstructionError(InstructionError {
-            pos_zero: 0
+      Token::Error(ParseError::InstructionError(Source {
+            pos_zero: 0,
+            component: Component::Tokenizer,
+            line: 0,
+            code: 0,
       })),
       Token::Real(TokenBody::Defered(Span {
          index: 0, line: 0, pos_line: 1, pos_region: 1, pos_zero: 1, length: 10
@@ -381,8 +394,11 @@ fn tokenizer_instruction_include_test_11() {
       Token::Real(TokenBody::Defered(Span {
          index: 0, line: 0, pos_line: 12, pos_region: 12, pos_zero: 12, length: 3
       })),
-      Token::Error(ParseError::OpenInstruction(InstructionError {
+      Token::Error(ParseError::OpenInstruction(Source {
          pos_zero: 3,
+         component: Component::Tokenizer,
+         line: 0,
+         code: 0
       })),
    ].to_vec();
 

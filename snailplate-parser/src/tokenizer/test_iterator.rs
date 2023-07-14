@@ -193,7 +193,7 @@ fn tokenizer_iterator_test_04() {
    for token in t {
       num_token += 1;
       if let Token::Error(parse_error) = token {
-         if let ParseError::NoInput = parse_error {
+         if let ParseError::NoInput(..) = parse_error {
             // This is good.
          }
          else {

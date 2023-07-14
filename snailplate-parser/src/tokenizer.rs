@@ -5,7 +5,6 @@ use crate::{
    span::Span,
    parse_error::{
       ParseError,
-      InstructionError,
       Source,
       Component,
    }
@@ -950,8 +949,11 @@ impl Tokenizer {
       let pos_zero = self.pos_zero + len_left;
 
       if let Err(token) = self.tokenbuf_push(Token::Error(
-         ParseError::InstructionError(InstructionError {
-            pos_zero: pos_zero
+         ParseError::InstructionError(Source {
+            pos_zero: pos_zero,
+            component: Component::Tokenizer,
+            line: line!(),
+            code: 0,
          })
       )){
          return Some(token);
@@ -986,16 +988,22 @@ impl Tokenizer {
       #[cfg(not(feature = "unguarded_tokenizer_integrity"))] {
          if pos_last_char < pos_first_char {
             return Some(self.fail_token(Token::Fatal(ParseError::InstructionError(
-               InstructionError {
+               Source {
                   pos_zero: pos_zero,
+                  component: Component::Tokenizer,
+                  line: line!(),
+                  code: 0,
                }
             ))));
          }
 
          if pos_first_char <= pos_at {
             return Some(self.fail_token(Token::Fatal(ParseError::InstructionError(
-               InstructionError {
+               Source {
                   pos_zero: pos_zero,
+                  component: Component::Tokenizer,
+                  line: line!(),
+                  code: 0,
                }
             ))));
          }
@@ -1077,8 +1085,11 @@ impl Tokenizer {
 
          if line_at != line_start {
             return Some(self.fail_token(Token::Fatal(
-               ParseError::InstructionError(InstructionError {
+               ParseError::InstructionError(Source {
                   pos_zero: pos_zero,
+                  component: Component::Tokenizer,
+                  line: line!(),
+                  code: 0,
                }
             ))));
          }
@@ -1087,8 +1098,11 @@ impl Tokenizer {
          // at location where defered token is.
          if pos_start != self.pos_region {
             return Some(self.fail_token(Token::Fatal(
-               ParseError::InstructionError(InstructionError {
+               ParseError::InstructionError(Source {
                   pos_zero: pos_zero,
+                  component: Component::Tokenizer,
+                  line: line!(),
+                  code: 0,
                }
             ))));
          }
@@ -1199,8 +1213,11 @@ impl Tokenizer {
 
          if line_at != line_start {
             return Some(self.fail_token(Token::Fatal(
-               ParseError::InstructionError(InstructionError {
+               ParseError::InstructionError(Source {
                   pos_zero: pos_zero,
+                  component: Component::Tokenizer,
+                  line: line!(),
+                  code: 0,
                }
             ))));
          }
@@ -1417,8 +1434,11 @@ impl Tokenizer {
       }
 
       if let Err(token) = self.tokenbuf_push(Token::Error(
-         ParseError::OpenInstruction(InstructionError {
-               pos_zero: self.pos_zero_prev_instr
+         ParseError::OpenInstruction(Source {
+               pos_zero: self.pos_zero_prev_instr,
+               component: Component::Tokenizer,
+               line: line!(),
+               code: 0,
          }))) {
          return Some(token);
       };
@@ -1766,6 +1786,8 @@ impl Tokenizer {
 fn tokenlist_match_or_fail(t: &mut Tokenizer, list: &[Token], allow_unbuffered: bool)
    -> Result<(), (Option<Token>, Option<Token>)>
 {
+   use ParseError as Pe;
+
    let mut idx = 0;
 
    // This index is out of bounds in relative measure to expected list.
@@ -1790,8 +1812,35 @@ fn tokenlist_match_or_fail(t: &mut Tokenizer, list: &[Token], allow_unbuffered: 
       // If there are expected items, compare if they match.
       if let Some(expect) = list.get(idx) {
          // println!("expected: {:?}, at idx: {}", expect, idx);
-         if *expect != token {
-            return Err((Some((*expect).clone()), Some(token)));
+
+         // Yes i know, this looks like a mess, but what we want to achieve here
+         // is that ParseErrors are compared on everything except line number,
+         // since it changes too often.
+         match (&token, expect) {
+            (Token::Error(p1), Token::Error(p2))
+            | (Token::Fatal(p1), Token::Fatal(p2))
+            => match (p1, p2) {
+               (Pe::NoMemory(s1), Pe::NoMemory(s2))
+               | (Pe::InternalError(s1), Pe::InternalError(s2))
+               | (Pe::OpenInstruction(s1), Pe::OpenInstruction(s2))
+               | (Pe::InstructionError(s1), Pe::InstructionError(s2))
+               => {
+                  if s1.pos_zero != s2.pos_zero
+                  || s1.component != s2.component
+                  || s1.code != s2.code
+                  {
+                     return Err((Some((*expect).clone()), Some(token)));
+                  }
+               }
+               _ => {
+                  return Err((Some((*expect).clone()), Some(token)));
+               }
+            }
+            (token, expect) => {
+               if *expect != *token {
+                  return Err((Some((*expect).clone()), Some((*token).clone())));
+               }
+            }
          }
       }
       else {
