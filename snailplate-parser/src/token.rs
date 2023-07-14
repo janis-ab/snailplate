@@ -40,14 +40,15 @@ pub enum Token {
    // fails the compilation of it. Sometimes this is a recoverable error.
    Error(ParseError),
 
-   // TODO: implement warnings; tokens that allow parsing to continue, but emit
-   // warnings when template is compiled.
+   // Warnings are a Tokens that allow parsing to continue, but emit warnings 
+   // messages at template compile time.
+   Warning(ParseError),
 
    /// This token should be ignored by the outside code. This is necessary so that
    /// when some component changes state fro Tokenizer, Resolver, etc. the state
    /// is changed. This makes while loops/state changes easier to write. This
    /// is returned when sub-state changes as well.
-   StateChange,    
+   StateChange,
 }
 
 
@@ -72,6 +73,7 @@ impl Token {
 
          T::Fatal(parse_error)
          | T::Error(parse_error)
+         | T::Warning(parse_error)
          => match parse_error {
             Pe::InstructionError(..) 
             | Pe::OpenInstruction(..)
@@ -158,6 +160,27 @@ impl<'a, F: SpanFormatter> std::fmt::Debug for TokenFormatWrapper<'a, F> {
                (Some("Error(None"), None, Some(")"), None)
             }
          }
+
+         T::Warning(parse_error) => match parse_error {
+            Pe::OpenInstruction(source)
+               => error_tuple!(Warning, OpenInstruction, source),
+            Pe::InstructionError(source)
+               => error_tuple!(Warning, InstructionWarning, source),
+            Pe::InstructionNotOpen(source)
+               => error_tuple!(Warning, InstructionNotOpen, source),
+            Pe::InstructionMissingArgs(source)
+               => error_tuple!(Warning, InstructionMissingArgs, source),
+            Pe::NoMemory(source)
+               => error_tuple!(Warning, NoMemory, source),
+            Pe::InternalError(source)
+               => error_tuple!(Warning, InternalWarning, source),
+            Pe::NoInput(source)
+               => error_tuple!(Warning, NoInput, source),
+            Pe::None => {
+               (Some("Warning(None"), None, Some(")"), None)
+            }
+         }
+
          T::StateChange => (Some("StateChange"), None, None, None),
       };
 
