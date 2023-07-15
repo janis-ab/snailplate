@@ -8,6 +8,9 @@ use snailplate_parser::{
    token::Token,
    tokenbody::TokenBody,
    span::Span,
+   parse_error::{
+      ParseError,
+   }
 };
 
 
@@ -152,6 +155,8 @@ impl<T: ExpectedHashMap> TokenIntegrationTester for T {
    fn tokenlist_match_or_fail(&mut self, list: &[Token])
       -> Result<(), (usize, Option<Token>, Option<Token>)>
    {
+      use ParseError as Pe;
+
       let mut idx = 0;
 
       // This index is out of bounds in relative measure to expected list.
@@ -178,8 +183,41 @@ impl<T: ExpectedHashMap> TokenIntegrationTester for T {
          // If there are expected items, compare if they match.
          if let Some(expect) = list.get(idx) {
             // println!("expected: {:?}, at idx: {}", expect, idx);
-            if *expect != token {
-               return Err((idx, Some((*expect).clone()), Some(token)));
+
+            // Yes i know, this looks like a mess, but what we want to achieve here
+            // is that ParseErrors are compared on everything except line number,
+            // since it changes too often.
+            match (&token, expect) {
+               (Token::Error(p1), Token::Error(p2))
+               | (Token::Fatal(p1), Token::Fatal(p2))
+               | (Token::Warning(p1), Token::Warning(p2))
+               => match (p1, p2) {
+                  (Pe::NoMemory(s1), Pe::NoMemory(s2))
+                  | (Pe::InternalError(s1), Pe::InternalError(s2))
+                  | (Pe::OpenInstruction(s1), Pe::OpenInstruction(s2))
+                  | (Pe::InstructionError(s1), Pe::InstructionError(s2))
+                  | (Pe::InstructionNotOpen(s1), Pe::InstructionNotOpen(s2))
+                  | (Pe::InstructionMissingArgs(s1), Pe::InstructionMissingArgs(s2))
+                  | (Pe::UnwantedWhiteSpace(s1), Pe::UnwantedWhiteSpace(s2))
+                  => {
+                     if s1.pos_zero != s2.pos_zero
+                     || s1.component != s2.component
+                     || s1.code != s2.code
+                     {
+                        return Err((idx, Some((*expect).clone()), Some(token)));
+                     }
+                  }
+                  _ => {
+                     if *expect != token {
+                        return Err((idx, Some((*expect).clone()), Some(token)));
+                     }
+                  }
+               }
+               (token, expect) => {
+                  if *expect != *token {
+                     return Err((idx, Some((*expect).clone()), Some((*token).clone())));
+                  }
+               }
             }
          }
          else {
