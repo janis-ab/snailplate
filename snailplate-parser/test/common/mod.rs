@@ -10,6 +10,8 @@ use snailplate_parser::{
    span::Span,
    parse_error::{
       ParseError,
+      Component,
+      Source,
    }
 };
 
@@ -134,6 +136,7 @@ impl<T: ExpectedHashMap> TokenIntegrationTester for T {
 
       register!("x_newline_y");
       register!("include_complete_defered");
+      register!("include_contains_xxx_bad_whitespace");
    }
 
 

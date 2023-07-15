@@ -90,3 +90,14 @@ fn tokenizer_instruction_include_test_101() {
 }
 
 
+
+// cargo test -F dbg_tokenbuf_verbose -F dbg_tokenizer_verbose --test tokenizer_test tokenizer_instruction_include_test_01 -- --nocapture
+#[test]
+fn tokenizer_instruction_include_test_01() {
+   let mut tt = TokenizerTester::new(&["include_contains_xxx_bad_whitespace"]);
+   tt.token_test_run();
+}
+
+
+
+// ================== EOF: do not write below this ============================
