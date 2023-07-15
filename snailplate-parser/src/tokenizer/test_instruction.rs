@@ -42,8 +42,10 @@ fn tokenizer_instruction_include_test_01() {
       })),
    ].to_vec();
 
-   if let Err((expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
-      panic!("Token mismatch. Expect: {:?} vs got: {:?}", expect, got);
+   if let Err((idx, expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
+      panic!("Token mismatch at idx: {}. Expect: {:?} vs got: {:?}", idx,
+         expect, got
+      );
    }
 }
 
@@ -95,8 +97,10 @@ fn tokenizer_instruction_include_test_02() {
       })),
    ].to_vec();
 
-   if let Err((expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
-      panic!("Token mismatch. Expect: {:?} vs got: {:?}", expect, got);
+   if let Err((idx, expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
+      panic!("Token mismatch at idx: {}. Expect: {:?} vs got: {:?}", idx,
+         expect, got
+      );
    }
 }
 
@@ -133,8 +137,10 @@ fn tokenizer_instruction_include_test_03() {
       })),
    ].to_vec();
 
-   if let Err((expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
-      panic!("Token mismatch. Expect: {:?} vs got: {:?}", expect, got);
+   if let Err((idx, expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
+      panic!("Token mismatch at idx: {}. Expect: {:?} vs got: {:?}", idx,
+         expect, got
+      );
    }
 }
 
@@ -161,8 +167,10 @@ fn tokenizer_instruction_include_test_04() {
       // warning information with suggestions.
    ].to_vec();
 
-   if let Err((expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
-      panic!("Token mismatch. Expect: {:?} vs got: {:?}", expect, got);
+   if let Err((idx, expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
+      panic!("Token mismatch at idx: {}. Expect: {:?} vs got: {:?}", idx,
+         expect, got
+      );
    }
 }
 
@@ -188,8 +196,10 @@ fn tokenizer_instruction_include_test_05() {
       // warning information with suggestions.
    ].to_vec();
 
-   if let Err((expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
-      panic!("Token mismatch. Expect: {:?} vs got: {:?}", expect, got);
+   if let Err((idx, expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
+      panic!("Token mismatch at idx: {}. Expect: {:?} vs got: {:?}", idx,
+         expect, got
+      );
    }
 }
 
@@ -221,8 +231,10 @@ fn tokenizer_instruction_include_test_06() {
       // warning information with suggestions.
    ].to_vec();
 
-   if let Err((expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
-      panic!("Token mismatch. Expect: {:?} vs got: {:?}", expect, got);
+   if let Err((idx, expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
+      panic!("Token mismatch at idx: {}. Expect: {:?} vs got: {:?}", idx,
+         expect, got
+      );
    }
 }
 
@@ -259,8 +271,10 @@ fn tokenizer_instruction_include_test_07() {
       })),
    ].to_vec();
 
-   if let Err((expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
-      panic!("Token mismatch. Expect: {:?} vs got: {:?}", expect, got);
+   if let Err((idx, expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
+      panic!("Token mismatch at idx: {}. Expect: {:?} vs got: {:?}", idx,
+         expect, got
+      );
    }
 }
 
@@ -292,8 +306,10 @@ fn tokenizer_instruction_include_test_08() {
       })),
    ].to_vec();
 
-   if let Err((expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
-      panic!("Token mismatch. Expect: {:?} vs got: {:?}", expect, got);
+   if let Err((idx, expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
+      panic!("Token mismatch at idx: {}. Expect: {:?} vs got: {:?}", idx,
+         expect, got
+      );
    }
 }
 
@@ -326,8 +342,10 @@ fn tokenizer_instruction_include_test_09() {
       })),
    ].to_vec();
 
-   if let Err((expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
-      panic!("Token mismatch. Expect: {:?} vs got: {:?}", expect, got);
+   if let Err((idx, expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
+      panic!("Token mismatch at idx: {}. Expect: {:?} vs got: {:?}", idx,
+         expect, got
+      );
    }
 }
 
@@ -365,8 +383,10 @@ fn tokenizer_instruction_include_test_10() {
       })),
    ].to_vec();
 
-   if let Err((expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
-      panic!("Token mismatch. Expect: {:?} vs got: {:?}", expect, got);
+   if let Err((idx, expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
+      panic!("Token mismatch at idx: {}. Expect: {:?} vs got: {:?}", idx,
+         expect, got
+      );
    }
 }
 
@@ -402,8 +422,10 @@ fn tokenizer_instruction_include_test_11() {
       })),
    ].to_vec();
 
-   if let Err((expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
-      panic!("Token mismatch. Expect: {:?} vs got: {:?}", expect, got);
+   if let Err((idx, expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
+      panic!("Token mismatch at idx: {}. Expect: {:?} vs got: {:?}", idx,
+         expect, got
+      );
    }
 }
 
@@ -427,8 +449,10 @@ fn tokenizer_instruction_include_test_102() {
       // TODO:
    ].to_vec();
 
-   if let Err((expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
-      panic!("Token mismatch. Expect: {:?} vs got: {:?}", expect, got);
+   if let Err((idx, expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
+      panic!("Token mismatch at idx: {}. Expect: {:?} vs got: {:?}", idx,
+         expect, got
+      );
    }
 }
 
@@ -454,8 +478,10 @@ fn tokenizer_instruction_include_test_103() {
       // TODO:
    ].to_vec();
 
-   if let Err((expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
-      panic!("Token mismatch. Expect: {:?} vs got: {:?}", expect, got);
+   if let Err((idx, expect, got)) = tokenlist_match_or_fail(&mut t, &list, true){
+      panic!("Token mismatch at idx: {}. Expect: {:?} vs got: {:?}", idx,
+         expect, got
+      );
    }
 }
 

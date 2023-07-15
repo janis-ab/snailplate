@@ -47,7 +47,7 @@ pub trait TokenIntegrationTester {
    fn token_test_run(&mut self);
 
    fn tokenlist_match_or_fail(&mut self, list: &[Token])
-      -> Result<(), (Option<Token>, Option<Token>)>
+      -> Result<(), (usize, Option<Token>, Option<Token>)>
    ;
 
 
@@ -144,8 +144,13 @@ impl<T: ExpectedHashMap> TokenIntegrationTester for T {
    // Other problem was with lifetimes, i could not pass Box<dyn..> to
    // tokenizer::tokenlist_match_or_fail as argument, due to problems with
    // lifetimes.
+   //
+   // # Notes
+   //
+   // Try to keep this function in sync with tokenizer.rs version.
+   //
    fn tokenlist_match_or_fail(&mut self, list: &[Token])
-      -> Result<(), (Option<Token>, Option<Token>)>
+      -> Result<(), (usize, Option<Token>, Option<Token>)>
    {
       let mut idx = 0;
 
@@ -161,7 +166,7 @@ impl<T: ExpectedHashMap> TokenIntegrationTester for T {
          // If tokenizer returns more items than are in expected item buffer,
          // we must error out. This must be done at iteration start.
          if idx >= idx_oob {
-            return Err((None, Some(token)));
+            return Err((idx, None, Some(token)));
          }
 
          // We do not care if Tokenizer has changed state. We only care about
@@ -174,11 +179,11 @@ impl<T: ExpectedHashMap> TokenIntegrationTester for T {
          if let Some(expect) = list.get(idx) {
             // println!("expected: {:?}, at idx: {}", expect, idx);
             if *expect != token {
-               return Err((Some((*expect).clone()), Some(token)));
+               return Err((idx, Some((*expect).clone()), Some(token)));
             }
          }
          else {
-            return Err((None, Some(token)));
+            return Err((idx, None, Some(token)));
          }
 
          idx += 1;
@@ -189,7 +194,7 @@ impl<T: ExpectedHashMap> TokenIntegrationTester for T {
       // Tokenizer returned less Tokens than expected.
       if idx < idx_oob {
          if let Some(expect) = list.get(idx) {
-            return Err((Some((*expect).clone()), None));
+            return Err((idx, Some((*expect).clone()), None));
          }
       }
 
@@ -215,8 +220,10 @@ impl<T: ExpectedHashMap> TokenIntegrationTester for T {
          panic!("There is no expected filename defined.");
       };
 
-      if let Err((expect, got)) = self.tokenlist_match_or_fail(&list){
-         panic!("Token mismatch. Expect: {:?} vs got: {:?}", expect, got);
+      if let Err((idx, expect, got)) = self.tokenlist_match_or_fail(&list){
+         panic!("Token mismatch at index: {}. Expect: {:?} vs got: {:?}", idx,
+            expect, got
+         );
       }
    }
 }

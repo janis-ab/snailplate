@@ -1245,7 +1245,7 @@ impl Tokenizer {
    #[inline(always)]
    fn instruction_tokenize_correct_paren_now(&mut self,
       pos_at: usize, pos_start: usize, pos_open_paren: usize,
-      ident_pos_end: usize, line_at: usize, line_start: usize,
+      ident_pos_end: usize, line_at: usize, _line_start: usize,
       line_open_paren: usize, pos_last_linestart: usize
    )
       -> Option<Token>
@@ -1258,7 +1258,7 @@ impl Tokenizer {
          let len_left = pos_start - self.pos_region;
          let pos_zero = self.pos_zero + len_left;
 
-         if line_at != line_start {
+         if line_at != _line_start {
             return Some(self.fail_token(Token::Fatal(
                ParseError::InstructionError(Source {
                   pos_zero: pos_zero,
@@ -1829,9 +1829,15 @@ impl Tokenizer {
 //   well, because when more than expected tokens are returned it is hard to
 //   understand where the error is, since expect None, got Token does not help.
 //   Index would allow us to see, how many tokens matched.
+//
+// # Notes
+//
+// Try to keep this function in sync with test/common/mod.rs version of
+// tokenlist_match_or_fail.
+//
 #[cfg(all(test, not(feature = "tokenlist_match_or_fail_print_only")))]
 fn tokenlist_match_or_fail(t: &mut Tokenizer, list: &[Token], allow_unbuffered: bool)
-   -> Result<(), (Option<Token>, Option<Token>)>
+   -> Result<(), (usize, Option<Token>, Option<Token>)>
 {
    use ParseError as Pe;
 
@@ -1847,7 +1853,7 @@ fn tokenlist_match_or_fail(t: &mut Tokenizer, list: &[Token], allow_unbuffered: 
       // If tokenizer returns more items than are in expected item buffer,
       // we must error out. This must be done at iteration start.
       if idx >= idx_oob {
-         return Err((None, Some(token)));
+         return Err((idx, None, Some(token)));
       }
 
       // We do not care if Tokenizer has changed state. We only care about
@@ -1880,24 +1886,24 @@ fn tokenlist_match_or_fail(t: &mut Tokenizer, list: &[Token], allow_unbuffered: 
                   || s1.component != s2.component
                   || s1.code != s2.code
                   {
-                     return Err((Some((*expect).clone()), Some(token)));
+                     return Err((idx, Some((*expect).clone()), Some(token)));
                   }
                }
                _ => {
                   if *expect != token {
-                     return Err((Some((*expect).clone()), Some(token)));
+                     return Err((idx, Some((*expect).clone()), Some(token)));
                   }
                }
             }
             (token, expect) => {
                if *expect != *token {
-                  return Err((Some((*expect).clone()), Some((*token).clone())));
+                  return Err((idx, Some((*expect).clone()), Some((*token).clone())));
                }
             }
          }
       }
       else {
-         return Err((None, Some(token)));
+         return Err((idx, None, Some(token)));
       }
 
       idx += 1;
@@ -1917,7 +1923,7 @@ fn tokenlist_match_or_fail(t: &mut Tokenizer, list: &[Token], allow_unbuffered: 
    // Tokenizer returned less Tokens than expected.
    if idx < idx_oob {
       if let Some(expect) = list.get(idx) {
-         return Err((Some((*expect).clone()), None));
+         return Err((idx, Some((*expect).clone()), None));
       }
    }
 
@@ -1933,12 +1939,12 @@ fn tokenlist_match_or_fail(t: &mut Tokenizer, list: &[Token], allow_unbuffered: 
 // All parameters and meaning is the same as for real tokenlist_match_or_fail.
 #[cfg(all(test, feature = "tokenlist_match_or_fail_print_only"))]
 fn tokenlist_match_or_fail(t: &mut Tokenizer, _: &[Token], allow_unbuffered: bool)
-   -> Result<(), (Option<Token>, Option<Token>)>
+   -> Result<(), (usize, Option<Token>, Option<Token>)>
 {
    while let Some(token) = t.next() {
       println!("{:?}", token);
       if !allow_unbuffered {
-         if t.tokenbuf.buf.len() < 1 {
+         if t.tokenbuf.buf_len() < 1 {
             break;
          }
       }

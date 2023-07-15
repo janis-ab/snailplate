@@ -458,10 +458,12 @@ fn test_whitespace_into_tokenbuf(
          // will not be as expected for upcoming testing items/tuples.
 
          let num_tokens = t.tokenbuf.buf_len();
-         if let Err((expect, got)) = tokenlist_match_or_fail(&mut t,
+         if let Err((idx, expect, got)) = tokenlist_match_or_fail(&mut t,
             &expect[slice_base..slice_base + num_tokens], false
          ){
-            panic!("Token mismatch. Expect: {:?} vs got: {:?}", expect, got);
+            panic!("Token mismatch at idx: {}. Expect: {:?} vs got: {:?}", idx,
+               expect, got
+            );
          }
 
          // Here we can use pos_line form tokenizer, it should be a correct
@@ -534,10 +536,12 @@ fn test_whitespace_into_tokenbuf(
       }
    }
 
-   if let Err((expect, got)) = tokenlist_match_or_fail(&mut t,
+   if let Err((idx, expect, got)) = tokenlist_match_or_fail(&mut t,
       &expect[slice_base..slice_end], true
    ){
-      panic!("Token mismatch. Expect: {:?} vs got: {:?}", expect, got);
+      panic!("Token mismatch at idx: {}. Expect: {:?} vs got: {:?}", idx,
+         expect, got
+      );
    }
 }
 
