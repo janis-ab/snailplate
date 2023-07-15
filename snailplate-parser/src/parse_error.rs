@@ -2,6 +2,7 @@
 pub enum Component {
    Tokenizer,
    TokenBuf,
+   IncludeResolver,
 }
 
 

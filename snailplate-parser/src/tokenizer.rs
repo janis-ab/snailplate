@@ -403,7 +403,9 @@ impl Tokenizer {
       }
    }
 
-
+   pub fn state_set(&mut self, state: TokenizerState) {
+      self.state = state;
+   }
 
    // Each time when fatal error is returned, it is necessary to set Tokenizer
    // state to Failed, but i already keep forgetting to do that too often, thus

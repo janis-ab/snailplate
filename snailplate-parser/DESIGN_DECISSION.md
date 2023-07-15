@@ -62,6 +62,29 @@ at the end, thus it is just a WhiteSpace.
 
 
 <details>
+<summary>
+   DD-2023-07-14-01: Phantom WhiteSpace for IncludeResolver for @include
+</summary>
+When there is a bad whitespace between "@include" and "(", like this:
+"@include    (filename)" what tokens should IncludeResolver return?
+
+When IncludeResolver resolves @include, it returns consumed Tokens as Phantom,
+but in this case WhiteSpace token is not consumed by IncludeResolver, but from
+user's perspective it would be weird to receive this WhiteSpace token as Real,
+because it is kind of considered as a part of @include instruction.
+
+Yes, we could return it as Real, and blame it on user for bad input data, thus
+in rendered output user would have WhiteSpace before included content.
+
+But i have decided that we shall return this Token as Phantom, since Tokenizer
+matches @include instruction only when OpenParen is matched, thus it is known
+that in case if there are WhiteSpace tokens after @inlcude, those are unwanted
+whitespace that must be cleaned up and warning has to be emited.
+</details>
+
+
+
+<details>
 <summary>DD-2023-07-09-02: Code component and location into InternalError</summary>
 When Tokenizer fails with InternalError, it is hard to find what the cause is
 and from where the error is even emitted. So i've decided that it is necessary

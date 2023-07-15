@@ -32,6 +32,11 @@ future_passing_tests = []
 # to increase tokenization speed at the cost of integrity safeties.
 unguarded_tokenizer_integrity = []
 
+# By default IncludeResolver compiles in various value checks for unexpected
+# cases, bad state, etc. It is allowed to remove those guards to increase
+# IncludeResolver Token handling speed at the cost of integrity safeties.
+unguarded_include_resolver_integrity = []
+
 # If this feature is set, then tokenlist_match_or_fail will only print received
 # tokens from Tokenized. This feature is intended for snailplate
 # development and testing only.

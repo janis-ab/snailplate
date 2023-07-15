@@ -136,6 +136,8 @@ impl<T: ExpectedHashMap> TokenIntegrationTester for T {
 
       register!("x_newline_y");
       register!("include_complete_defered");
+      register!("include_contains_xxx_phantom");
+      register!("include_contains_xxx_bad_whitespace_phantom");
       register!("include_contains_xxx_bad_whitespace");
    }
 
@@ -255,7 +257,11 @@ impl<T: ExpectedHashMap> TokenIntegrationTester for T {
 
       let list = if let Some(expected) = self.name_expected() {
          let ex2 = expected.to_string();
-         self.expected().get(&ex2).unwrap().clone()
+         let error_msg = format!(concat!("There is no expected answer list",
+            " defined for key: \"{}\". Add it within function expected_load",
+            " by using \"register!\" macro."
+         ), ex2);
+         self.expected().get(&ex2).expect(&error_msg).clone()
       }
       else {
          panic!("There is no expected filename defined.");
