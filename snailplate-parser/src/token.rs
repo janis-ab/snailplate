@@ -79,6 +79,7 @@ impl Token {
             | Pe::OpenInstruction(..)
             | Pe::InstructionNotOpen(..)
             | Pe::InstructionMissingArgs(..)
+            | Pe::UnwantedWhiteSpace(..)
             | Pe::NoMemory(..)
             | Pe::InternalError(..)
             | Pe::NoInput(..)
@@ -130,6 +131,8 @@ impl<'a, F: SpanFormatter> std::fmt::Debug for TokenFormatWrapper<'a, F> {
                => error_tuple!(Fatal, InstructionNotOpen, source),
             Pe::InstructionMissingArgs(source)
                => error_tuple!(Fatal, InstructionMissingArgs, source),
+            Pe::UnwantedWhiteSpace(source)
+               => error_tuple!(Fatal, UnwantedWhiteSpace, source),
             Pe::NoMemory(source)
                => error_tuple!(Fatal, NoMemory, source),
             Pe::InternalError(source)
@@ -150,6 +153,8 @@ impl<'a, F: SpanFormatter> std::fmt::Debug for TokenFormatWrapper<'a, F> {
                => error_tuple!(Error, InstructionNotOpen, source),
             Pe::InstructionMissingArgs(source)
                => error_tuple!(Error, InstructionMissingArgs, source),
+            Pe::UnwantedWhiteSpace(source)
+               => error_tuple!(Error, UnwantedWhiteSpace, source),
             Pe::NoMemory(source)
                => error_tuple!(Error, NoMemory, source),
             Pe::InternalError(source)
@@ -170,6 +175,8 @@ impl<'a, F: SpanFormatter> std::fmt::Debug for TokenFormatWrapper<'a, F> {
                => error_tuple!(Warning, InstructionNotOpen, source),
             Pe::InstructionMissingArgs(source)
                => error_tuple!(Warning, InstructionMissingArgs, source),
+            Pe::UnwantedWhiteSpace(source)
+               => error_tuple!(Warning, UnwantedWhiteSpace, source),
             Pe::NoMemory(source)
                => error_tuple!(Warning, NoMemory, source),
             Pe::InternalError(source)

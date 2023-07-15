@@ -66,13 +66,13 @@ fn tokenizer_instruction_include_test_02() {
       Token::Real(TokenBody::Include(Span {
          index: 0, line: 0, pos_line: 0, pos_region: 0, pos_zero: 0, length: 8
       })),
-      Token::Real(TokenBody::WhiteSpace(Span {
+      Token::Real(TokenBody::WhiteSpaceTr(Span {
          index: 0, line: 0, pos_line: 8, pos_region: 8, pos_zero: 8, length: 2
       })),
       Token::Real(TokenBody::Newline(Span {
          index: 0, line: 0, pos_line: 10, pos_region: 10, pos_zero: 10, length: 1
       })),
-      Token::Real(TokenBody::WhiteSpace(Span {
+      Token::Real(TokenBody::WhiteSpaceWhole(Span {
          index: 0, line: 1, pos_line: 0, pos_region: 11, pos_zero: 11, length: 2
       })),
       Token::Real(TokenBody::Newline(Span {
@@ -81,7 +81,7 @@ fn tokenizer_instruction_include_test_02() {
       Token::Real(TokenBody::Newline(Span {
          index: 0, line: 2, pos_line: 0, pos_region: 14, pos_zero: 14, length: 1
       })),
-      Token::Real(TokenBody::WhiteSpace(Span {
+      Token::Real(TokenBody::WhiteSpaceLd(Span {
          index: 0, line: 3, pos_line: 0, pos_region: 15, pos_zero: 15, length: 4
       })),
       Token::Real(TokenBody::OpenParen(Span {

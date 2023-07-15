@@ -9,6 +9,59 @@ reasoning and decission made.
 
 
 <details>
+<summary>DD-2023-07-15-01: WhiteSpace vs WhiteSpaceTr vs WhiteSpaceLd</summary>
+When tokenizing text, it is helpfult to distinguish between different
+whitespaces. For example, if line starts with white space before text, or there
+is a white space after text before newline symbol.
+
+This information helps to print warnings about unwanted whitespaces in text,
+it allows for easier error detection, because we could use indentation level
+to analyze input and make an informed guess about which tag was forgotten. This
+in itself is nothing to decide on - trailing and leading whitespaces are useful
+as Tokens.
+
+The challange is in question how to clasify a whitespace that is the only token
+in whole line? Whould it be classified as WhiteSpaceLd, because it is the
+leading whitespace, but there is no text that follows? Should it be clasified
+as WhiteSpaceTr, because it is a trailing WhiteSpace, but there is no text
+preceding it? Or should it be clasified just as WhiteSpace, since it is not
+leading nor trailing.
+
+In this context text means tags, tag body contents, etc. anything that is not
+whitespace not newline. I.e. not "\t\r\n ".
+
+WhiteSpaceTr - we define a trailing white space as a whitespace that follows
+text and is the last token in line (before newline). This definition
+disqualifies this token as whitespace-only-line token.
+
+WhiteSpaceLd - we define leading white space as a whitespace that precedes text
+and follows after newline token; thus disqualified.
+
+Now the question is - should we use just a WhiteSpace or create a new Token
+type, something like whole-line-white-space or similar?
+
+In a way if we use the definitions above, it is implicitly known that if there
+is a WhiteSpace Token that is followed by Newline Token, it must be empty line,
+because otherwise WhiteSpaceLd or WhiteSpaceTr would be returned instead.
+
+OTOH from users perspective it would be more convenient to write analysis if we
+already know that this is white-space-only line. This approach moves complexity
+from user to Tokenizer.
+
+I've decided to make library use easier from users perspective at a cost with
+higher complexity for Tokenizer. Thus we have a special token WhiteSpaceWhole
+that is returned when there is only white space in line.
+
+If there is a whitespace that is not followed with Newline Token, it is not
+classified as WhiteSpaceWhole. It is just a WhiteSpace. The logic behind this is
+that WhiteSpaceWhole is for whitespaces that span over whole line, but in this
+case that span is not considered as a line, since there is no newline character
+at the end, thus it is just a WhiteSpace.
+</details>
+
+
+
+<details>
 <summary>DD-2023-07-09-02: Code component and location into InternalError</summary>
 When Tokenizer fails with InternalError, it is hard to find what the cause is
 and from where the error is even emitted. So i've decided that it is necessary

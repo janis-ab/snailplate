@@ -211,16 +211,33 @@ fn tokenizer_line_tokenize(tokenbuf: &mut TokenBuf, index: usize, src: &[u8],
          let len_wsp = _pos - _pos_prev;
 
          if len_wsp > 0 {
-            if let Err(token) = tokenbuf.append(Token::Real(
-               TokenBody::WhiteSpace(Span {
-                  index: index,
-                  pos_region: _pos_prev,
-                  pos_zero: pos_zero_base + *parsed_wsp,
-                  pos_line: *pos_line_base,
-                  line: *line,
-                  length: len_wsp,
-               })
-            )) {
+            let wsp_token = if *pos_line_base == 0 {
+               // If this is the only white space, it uses whole line.
+               Token::Real(TokenBody::WhiteSpaceWhole(Span {
+                     index: index,
+                     pos_region: _pos_prev,
+                     pos_zero: pos_zero_base + *parsed_wsp,
+                     pos_line: *pos_line_base,
+                     line: *line,
+                     length: len_wsp,
+               }))
+            }
+            else {
+               // If there is some "text" before, this is a trailing whitespace
+               // no matter what position. Whitespaces between text would not
+               // match 0x0A byte at this point.
+
+               Token::Real(TokenBody::WhiteSpaceTr(Span {
+                     index: index,
+                     pos_region: _pos_prev,
+                     pos_zero: pos_zero_base + *parsed_wsp,
+                     pos_line: *pos_line_base,
+                     line: *line,
+                     length: len_wsp,
+               }))
+            };
+
+            if let Err(token) = tokenbuf.append(wsp_token) {
                return Some(token);
             }
          }
@@ -328,16 +345,34 @@ fn tokenizer_whitespace_tokenize(tokenbuf: &mut TokenBuf, index: usize,
    // Build WhiteSpace token from all that is left without any newline. If
    // pos is at pos_end, this means that last character was newline
    if pos_end != pos {
-      if let Err(token) = tokenbuf.append(Token::Real(
-         TokenBody::WhiteSpace(Span {
+      let pos_max = src.len();
+
+      // If there is more "text" following this whitespace, then it is a leading
+      // whitespace.
+      let wsp_token = if pos_max > pos_end {
+         Token::Real(TokenBody::WhiteSpaceLd(Span {
             index: index,
             pos_region: pos,
             pos_zero: pos_zero_base + parsed_wsp,
             pos_line: pos_line_base,
             line: line,
             length: pos_end - pos,
-         })
-      )) {
+         }))
+      }
+      // If this is the last whitespace in region, it is just a whitespace.
+      else {
+         Token::Real(TokenBody::WhiteSpace(Span {
+            index: index,
+            pos_region: pos,
+            pos_zero: pos_zero_base + parsed_wsp,
+            pos_line: pos_line_base,
+            line: line,
+            length: pos_end - pos,
+         }))
+      }
+      ;
+
+      if let Err(token) = tokenbuf.append(wsp_token) {
          return Some(token);
       }
    }
@@ -678,6 +713,10 @@ impl Tokenizer {
       // This is a fast-path for cases when whitespace region does not contain
       // any newline char.
       if line_start == line_end {
+         // This Token always will be WhiteSpace, because by definition this
+         // function is called only between instruction name and parenthesis and
+         // if there is no newline, it's just a WhiteSpace.
+
          if let Err(token) = self.tokenbuf_push(Token::Real(
             TokenBody::WhiteSpace(Span {
                index: index,
@@ -691,8 +730,16 @@ impl Tokenizer {
             return Some(token);
          }
 
-         // TODO: we should buffer warning tokens here as well, since
-         // whitespaces after instruction names are discouraged.
+         if let Err(token) = self.tokenbuf_push(Token::Warning(
+               ParseError::UnwantedWhiteSpace ( Source {
+                  pos_zero: self.pos_zero + len_token,
+                  component: Component::Tokenizer,
+                  line: line!(),
+                  code: 2,
+               })
+            )) {
+            return Some(token);
+         }
 
          return None;
       }
@@ -1819,6 +1866,7 @@ fn tokenlist_match_or_fail(t: &mut Tokenizer, list: &[Token], allow_unbuffered: 
          match (&token, expect) {
             (Token::Error(p1), Token::Error(p2))
             | (Token::Fatal(p1), Token::Fatal(p2))
+            | (Token::Warning(p1), Token::Warning(p2))
             => match (p1, p2) {
                (Pe::NoMemory(s1), Pe::NoMemory(s2))
                | (Pe::InternalError(s1), Pe::InternalError(s2))
@@ -1826,6 +1874,7 @@ fn tokenlist_match_or_fail(t: &mut Tokenizer, list: &[Token], allow_unbuffered: 
                | (Pe::InstructionError(s1), Pe::InstructionError(s2))
                | (Pe::InstructionNotOpen(s1), Pe::InstructionNotOpen(s2))
                | (Pe::InstructionMissingArgs(s1), Pe::InstructionMissingArgs(s2))
+               | (Pe::UnwantedWhiteSpace(s1), Pe::UnwantedWhiteSpace(s2))
                => {
                   if s1.pos_zero != s2.pos_zero
                   || s1.component != s2.component

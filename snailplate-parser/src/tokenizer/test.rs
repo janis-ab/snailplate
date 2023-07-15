@@ -555,7 +555,7 @@ fn test_whitespace_into_tokenbuf_01(){
          (" \t \n\n  \n", 0, 0, 3,)
       ].to_vec(),
       [
-         Token::Real(TokenBody::WhiteSpace(Span {
+         Token::Real(TokenBody::WhiteSpaceWhole(Span {
             index: 0, line: 0, length: 3, pos_line: 0, pos_region: 0, pos_zero: 0
          })),
          Token::Real(TokenBody::Newline(Span {
@@ -564,7 +564,7 @@ fn test_whitespace_into_tokenbuf_01(){
          Token::Real(TokenBody::Newline(Span {
             index: 0, line: 1, length: 1, pos_line: 0, pos_region: 4, pos_zero: 4
          })),
-         Token::Real(TokenBody::WhiteSpace(Span {
+         Token::Real(TokenBody::WhiteSpaceWhole(Span {
             index: 0, line: 2, length: 2, pos_line: 0, pos_region: 5, pos_zero: 5
          })),
          Token::Real(TokenBody::Newline(Span {
@@ -587,7 +587,7 @@ fn test_whitespace_into_tokenbuf_02(){
          ("   \n\n  \n  \t  ", 0, 0, 3)
       ].to_vec(),
       [
-         Token::Real(TokenBody::WhiteSpace(Span {
+         Token::Real(TokenBody::WhiteSpaceWhole(Span {
             index: 0, line: 0, length: 3, pos_line: 0, pos_region: 0, pos_zero: 0
          })),
          Token::Real(TokenBody::Newline(Span {
@@ -596,12 +596,13 @@ fn test_whitespace_into_tokenbuf_02(){
          Token::Real(TokenBody::Newline(Span {
             index: 0, line: 1, length: 1, pos_line: 0, pos_region: 4, pos_zero: 4
          })),
-         Token::Real(TokenBody::WhiteSpace(Span {
+         Token::Real(TokenBody::WhiteSpaceWhole(Span {
             index: 0, line: 2, length: 2, pos_line: 0, pos_region: 5, pos_zero: 5
          })),
          Token::Real(TokenBody::Newline(Span {
             index: 0, line: 2, length: 1, pos_line: 2, pos_region: 7, pos_zero: 7
          })),
+         // Read DD-2023-07-15-01 why WhiteSpace.
          Token::Real(TokenBody::WhiteSpace(Span {
             index: 0, line: 3, length: 5, pos_line: 0, pos_region: 8, pos_zero: 8
          })),
@@ -625,6 +626,12 @@ fn test_whitespace_into_tokenbuf_03(){
       [
          Token::Real(TokenBody::WhiteSpace(Span {
             index: 0, line: 0, length: 3, pos_line: 0, pos_region: 0, pos_zero: 0
+         })),
+         Token::Warning(ParseError::UnwantedWhiteSpace( Source {
+            pos_zero: 0,
+            component: Component::Tokenizer,
+            line: 0,
+            code: 2,
          })),
       ].to_vec()
    );
@@ -652,6 +659,12 @@ fn test_whitespace_into_tokenbuf_04(){
          Token::Real(TokenBody::WhiteSpace(Span {
             index: 0, line: 0, length: 1, pos_line: 2, pos_region: 2, pos_zero: 2
          })),
+         Token::Warning(ParseError::UnwantedWhiteSpace( Source {
+            pos_zero: 2,
+            component: Component::Tokenizer,
+            line: 0,
+            code: 2,
+         })),
 
          // These are second tuple start tokens.
          Token::Real(TokenBody::Defered(Span {
@@ -660,6 +673,12 @@ fn test_whitespace_into_tokenbuf_04(){
          Token::Real(TokenBody::WhiteSpace(Span {
             index: 1, line: 0, length: 1, pos_line: 2, pos_region: 2, pos_zero: 5
          })),
+         Token::Warning(ParseError::UnwantedWhiteSpace( Source {
+            pos_zero: 5,
+            component: Component::Tokenizer,
+            line: 0,
+            code: 2,
+         })),
 
          // These are third tuple start tokens.
          Token::Real(TokenBody::Defered(Span {
@@ -667,6 +686,12 @@ fn test_whitespace_into_tokenbuf_04(){
          })),
          Token::Real(TokenBody::WhiteSpace(Span {
             index: 2, line: 0, length: 1, pos_line: 2, pos_region: 2, pos_zero: 8
+         })),
+         Token::Warning(ParseError::UnwantedWhiteSpace( Source {
+            pos_zero: 8,
+            component: Component::Tokenizer,
+            line: 0,
+            code: 2,
          })),
 
          // These are remaining Defered tokens, going backwards - third tuple,
@@ -702,13 +727,13 @@ fn test_whitespace_into_tokenbuf_05(){
          Token::Real(TokenBody::Defered(Span {
             index: 0, line: 0, length: 2, pos_line: 0, pos_region: 0, pos_zero: 0
          })),
-         Token::Real(TokenBody::WhiteSpace(Span {
+         Token::Real(TokenBody::WhiteSpaceTr(Span {
             index: 0, line: 0, length: 3, pos_line: 2, pos_region: 2, pos_zero: 2
          })),
          Token::Real(TokenBody::Newline(Span {
             index: 0, line: 0, length: 1, pos_line: 5, pos_region: 5, pos_zero: 5
          })),
-         Token::Real(TokenBody::WhiteSpace(Span {
+         Token::Real(TokenBody::WhiteSpaceWhole(Span {
             index: 0, line: 1, length: 1, pos_line: 0, pos_region: 6, pos_zero: 6
          })),
          Token::Real(TokenBody::Newline(Span {
@@ -717,7 +742,7 @@ fn test_whitespace_into_tokenbuf_05(){
          Token::Real(TokenBody::Newline(Span {
             index: 0, line: 2, length: 1, pos_line: 0, pos_region: 8, pos_zero: 8
          })),
-         Token::Real(TokenBody::WhiteSpace(Span {
+         Token::Real(TokenBody::WhiteSpaceLd(Span {
             index: 0, line: 3, length: 5, pos_line: 0, pos_region: 9, pos_zero: 9
          })),
 
@@ -749,13 +774,19 @@ fn test_whitespace_into_tokenbuf_06(){
          Token::Real(TokenBody::Defered(Span {
             index: 0, line: 0, length: 2, pos_line: 0, pos_region: 0, pos_zero: 0
          })),
-         Token::Real(TokenBody::WhiteSpace(Span {
+         Token::Real(TokenBody::WhiteSpaceTr(Span {
             index: 0, line: 0, length: 3, pos_line: 2, pos_region: 2, pos_zero: 2
          })),
+
+         // TODO: actually here we should receive UnwantedWhiteSpace warning
+         // here as well, because in this context whitespace is treaded as
+         // @include but Tokenizer does not check for that yet (it parses
+         // whitespace as is in this context.)
+
          Token::Real(TokenBody::Newline(Span {
             index: 0, line: 0, length: 1, pos_line: 5, pos_region: 5, pos_zero: 5
          })),
-         Token::Real(TokenBody::WhiteSpace(Span {
+         Token::Real(TokenBody::WhiteSpaceWhole(Span {
             index: 0, line: 1, length: 1, pos_line: 0, pos_region: 6, pos_zero: 6
          })),
          Token::Real(TokenBody::Newline(Span {
@@ -764,7 +795,7 @@ fn test_whitespace_into_tokenbuf_06(){
          Token::Real(TokenBody::Newline(Span {
             index: 0, line: 2, length: 1, pos_line: 0, pos_region: 8, pos_zero: 8
          })),
-         Token::Real(TokenBody::WhiteSpace(Span {
+         Token::Real(TokenBody::WhiteSpaceLd(Span {
             index: 0, line: 3, length: 5, pos_line: 0, pos_region: 9, pos_zero: 9
          })),
 
@@ -774,6 +805,12 @@ fn test_whitespace_into_tokenbuf_06(){
          })),
          Token::Real(TokenBody::WhiteSpace(Span {
             index: 1, line: 0, length: 2, pos_line: 2, pos_region: 2, pos_zero: 16
+         })),
+         Token::Warning(ParseError::UnwantedWhiteSpace( Source {
+            pos_zero: 16,
+            component: Component::Tokenizer,
+            line: 0,
+            code: 2,
          })),
 
          // These are remaining Defered tokens, going backwards - third tuple,
@@ -808,13 +845,13 @@ fn test_whitespace_into_tokenbuf_07(){
          Token::Real(TokenBody::Defered(Span {
             index: 0, line: 0, length: 2, pos_line: 0, pos_region: 0, pos_zero: 0
          })),
-         Token::Real(TokenBody::WhiteSpace(Span {
+         Token::Real(TokenBody::WhiteSpaceTr(Span {
             index: 0, line: 0, length: 3, pos_line: 2, pos_region: 2, pos_zero: 2
          })),
          Token::Real(TokenBody::Newline(Span {
             index: 0, line: 0, length: 1, pos_line: 5, pos_region: 5, pos_zero: 5
          })),
-         Token::Real(TokenBody::WhiteSpace(Span {
+         Token::Real(TokenBody::WhiteSpaceWhole(Span {
             index: 0, line: 1, length: 1, pos_line: 0, pos_region: 6, pos_zero: 6
          })),
          Token::Real(TokenBody::Newline(Span {
@@ -823,7 +860,7 @@ fn test_whitespace_into_tokenbuf_07(){
          Token::Real(TokenBody::Newline(Span {
             index: 0, line: 2, length: 1, pos_line: 0, pos_region: 8, pos_zero: 8
          })),
-         Token::Real(TokenBody::WhiteSpace(Span {
+         Token::Real(TokenBody::WhiteSpaceLd(Span {
             index: 0, line: 3, length: 5, pos_line: 0, pos_region: 9, pos_zero: 9
          })),
 
@@ -834,24 +871,30 @@ fn test_whitespace_into_tokenbuf_07(){
          Token::Real(TokenBody::WhiteSpace(Span {
             index: 1, line: 0, length: 2, pos_line: 2, pos_region: 2, pos_zero: 16
          })),
+         Token::Warning(ParseError::UnwantedWhiteSpace( Source {
+            pos_zero: 16,
+            component: Component::Tokenizer,
+            line: 0,
+            code: 2,
+         })),
 
          // These are the start tokens for third tuple.
          Token::Real(TokenBody::Defered(Span {
             index: 2, line: 0, length: 2, pos_line: 0, pos_region: 0, pos_zero: 18
          })),
-         Token::Real(TokenBody::WhiteSpace(Span {
+         Token::Real(TokenBody::WhiteSpaceTr(Span {
             index: 2, line: 0, length: 2, pos_line: 2, pos_region: 2, pos_zero: 20
          })),
          Token::Real(TokenBody::Newline(Span {
             index: 2, line: 0, length: 1, pos_line: 4, pos_region: 4, pos_zero: 22
          })),
-         Token::Real(TokenBody::WhiteSpace(Span {
+         Token::Real(TokenBody::WhiteSpaceWhole(Span {
             index: 2, line: 1, length: 3, pos_line: 0, pos_region: 5, pos_zero: 23
          })),
          Token::Real(TokenBody::Newline(Span {
             index: 2, line: 1, length: 1, pos_line: 3, pos_region: 8, pos_zero: 26
          })),
-         Token::Real(TokenBody::WhiteSpace(Span {
+         Token::Real(TokenBody::WhiteSpaceWhole(Span {
             index: 2, line: 2, length: 1, pos_line: 0, pos_region: 9, pos_zero: 27
          })),
          Token::Real(TokenBody::Newline(Span {
@@ -891,13 +934,13 @@ fn test_whitespace_into_tokenbuf_08(){
          Token::Real(TokenBody::Defered(Span {
             index: 0, line: 0, length: 2, pos_line: 0, pos_region: 0, pos_zero: 0
          })),
-         Token::Real(TokenBody::WhiteSpace(Span {
+         Token::Real(TokenBody::WhiteSpaceTr(Span {
             index: 0, line: 0, length: 3, pos_line: 2, pos_region: 2, pos_zero: 2
          })),
          Token::Real(TokenBody::Newline(Span {
             index: 0, line: 0, length: 1, pos_line: 5, pos_region: 5, pos_zero: 5
          })),
-         Token::Real(TokenBody::WhiteSpace(Span {
+         Token::Real(TokenBody::WhiteSpaceWhole(Span {
             index: 0, line: 1, length: 1, pos_line: 0, pos_region: 6, pos_zero: 6
          })),
          Token::Real(TokenBody::Newline(Span {
@@ -931,13 +974,13 @@ fn test_whitespace_into_tokenbuf_09(){
          Token::Real(TokenBody::Defered(Span {
             index: 0, line: 0, length: 2, pos_line: 0, pos_region: 0, pos_zero: 0
          })),
-         Token::Real(TokenBody::WhiteSpace(Span {
+         Token::Real(TokenBody::WhiteSpaceTr(Span {
             index: 0, line: 0, length: 3, pos_line: 2, pos_region: 2, pos_zero: 2
          })),
          Token::Real(TokenBody::Newline(Span {
             index: 0, line: 0, length: 1, pos_line: 5, pos_region: 5, pos_zero: 5
          })),
-         Token::Real(TokenBody::WhiteSpace(Span {
+         Token::Real(TokenBody::WhiteSpaceWhole(Span {
             index: 0, line: 1, length: 1, pos_line: 0, pos_region: 6, pos_zero: 6
          })),
          Token::Real(TokenBody::Newline(Span {
@@ -1038,6 +1081,12 @@ fn test_whitespace_into_tokenbuf_13(){
       [
          Token::Real(TokenBody::WhiteSpace(Span {
             index: 0, line: 0, length: 1, pos_line: 0, pos_region: 0, pos_zero: 0
+         })),
+         Token::Warning(ParseError::UnwantedWhiteSpace( Source {
+            pos_zero: 0,
+            component: Component::Tokenizer,
+            line: 0,
+            code: 2,
          })),
       ].to_vec()
    );

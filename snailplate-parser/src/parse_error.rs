@@ -74,7 +74,14 @@ pub enum ParseError {
    /// for tokenizer.
    NoInput(Source),
 
+   /// When there is an unwanted whitespace in template source.
+   UnwantedWhiteSpace(Source),
+
    /// Since we intend to store previous error in Tokenizer state, we need to
    /// have an initial value.
    None,
 }
+
+
+
+// ================== EOF: do not write below this ============================

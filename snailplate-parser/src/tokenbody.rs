@@ -62,6 +62,20 @@ pub enum TokenBody {
    /// example " \t\r", but does not include newline. See DD-2023-07-01-01.
    WhiteSpace(Span),
 
+   /// This matches the same conditions as WhiteSpace, but only if the following
+   /// Token is Newline and preceding token is not Newline. Trailing white
+   /// space  - last whitespace in line that follows after text.
+   /// DD-2023-07-15-01.
+   WhiteSpaceTr(Span),
+
+   /// This matches the same conditions as WhiteSpace, but only if it is
+   /// following after Newline Token and there is non-Newline token following
+   /// it. Line leading white space. DD-2023-07-15-01.
+   WhiteSpaceLd(Span),
+
+   /// Whitespace that spans over whole line. DD-2023-07-15-01.
+   WhiteSpaceWhole(Span),
+
    /// This matches newlines, usually "\n" or "\r\n". See DD-2023-07-01-01.
    Newline(Span),
 
@@ -92,7 +106,10 @@ impl TokenBody {
          | Tb::CloseParen(span) 
          | Tb::Lt(span) 
          | Tb::Gt(span) 
-         | Tb::WhiteSpace(span) 
+         | Tb::WhiteSpace(span)
+         | Tb::WhiteSpaceTr(span)
+         | Tb::WhiteSpaceLd(span)
+         | Tb::WhiteSpaceWhole(span)
          | Tb::FilePath(span)       
          | Tb::Newline(span)
          => {
@@ -155,8 +172,14 @@ impl<'a, F: SpanFormatter> fmt::Debug for TokenBodyFormatWrapper<'a, F> {
             => (Some("Lt("), Some(")")),
          Tb::Gt(..) 
             => (Some("Gt("), Some(")")),
-         Tb::WhiteSpace(..) 
+         Tb::WhiteSpace(..)
             => (Some("WhiteSpace("), Some(")")),
+         Tb::WhiteSpaceTr(..)
+            => (Some("WhiteSpaceTr("), Some(")")),
+         Tb::WhiteSpaceLd(..)
+            => (Some("WhiteSpaceLd("), Some(")")),
+         Tb::WhiteSpaceWhole(..)
+            => (Some("WhiteSpaceWhole("), Some(")")),
          Tb::FilePath(..) 
             => (Some("FilePath("), Some(")")),
          Tb::Newline(..) 
